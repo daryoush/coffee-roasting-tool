@@ -1,0 +1,34 @@
+﻿# Reading the Chart
+#
+# Phase        | Color Band | Time       | What's Happening
+# Drying       | Blue       | 0:00 – 4:00| Moisture leaves the bean. Temp recovers from the charge crash and climbs steadily.
+# Maillard     | Yellow     | 4:00 – 8:00| Sugars and amino acids react. Color shifts tan → cinnamon. Berry aroma builds.
+# First Crack  | Red        | 8:00 – 8:30| Audible popping begins at 360°F. Reduce flame to low.
+# Development  | Green      | 8:30 – 9:00| Only 30–45 seconds. Drop at 372°F for maximum fruit.
+#
+# Key Visual Cues on the Curve:
+# - The steep drop at 0:30 (325°F → 130°F) is the normal charge crash—your beans absorbing heat from the pan.
+# - The curve steepens after 7:00 as the roast accelerates toward first crack. This is your warning to reduce flame.
+# - The gentle rise from 360°F to 372°F is the development phase. Keep it short. Every extra 10°F past 372°F burns off more blueberry.
+#
+# -----------------------------------------------------------------------------
+Time,Target °F,Notes
+0:00,Charge at ~325°F pan,Flame: Medium-low. Drop beans. Temp crashes. Stir.
+0:30,130°F,Flame: Medium-low. Reading settling.
+1:00,160°F,Flame: Medium-low. No color change.
+1:30,180°F,Flame: Medium-low. Steam rising.
+2:00,200°F,Flame: Medium-low. Edges may lighten.
+2:30,215°F,Flame: Medium-low. Pale yellow.
+3:00,230°F,Flame: Medium. Uniform yellow. Hay smell.
+3:30,245°F,Flame: Medium. Tan spreading.
+4:00,255°F,Flame: Medium. Light brown. End drying.
+4:30,265°F,Flame: Medium. Toasty sweetness.
+5:00,275°F,Flame: Medium. Maillard rolling.
+5:30,285°F,Flame: Medium. Cinnamon emerging.
+6:00,295°F,Flame: Medium. Browning faster.
+6:30,305°F,Flame: Medium. Fruit/floral aroma.
+7:00,315°F,Flame: Medium-low. Reduce flame now.
+7:30,325°F,Flame: Medium-low. Berry smell strong.
+8:00,335°F,Flame: Medium-low. Deep cinnamon. FC approaching.
+8:30,360°F,Flame: Low. First crack. Start timing.
+9:00,370–375°F,Flame: OFF. DROP. 30–45 sec after FC.
