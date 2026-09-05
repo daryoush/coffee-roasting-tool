@@ -1,6 +1,9 @@
 # coffee-roasting-tool
 # coffee-roasting-tool
 
+### How can I do the localhost version in android phone
+
+
  The easiest way to run this on Android with full microphone access is to run a tiny local web server **on the phone itself**, then open `http://localhost:8000` in Chrome. Here are your options, from simplest to most robust:
 
 ---
@@ -88,3 +91,22 @@ http://localhost:8000/roast_commander_v7.html
 If you see the page load and the mic button turns red when tapped, you're good to go. The app will work exactly like on a desktop, including voice recognition and text-to-speech.
 
 Want me to also make a version that works entirely offline without a server (using a Service Worker to fake a secure origin)? That would let you open it directly from Downloads, but it's more complex.
+
+
+## 📊 Profile CSV Format
+
+The tool now supports **flexible time intervals** (e.g., 30 seconds, 1.5 minutes) instead of being locked to strict 1-minute increments. 
+
+When loading or saving a profile CSV, the tool expects the following columns:
+- **Time**: Can be entered as decimal minutes (e.g., `0.5`, `1.25`) or `MM:SS` format (e.g., `0:30`, `1:15`).
+- **Target**: Target surface temperature in °F.
+- **Note**: Optional text that will be spoken aloud via Text-to-Speech when that time step is reached.
+
+**Example CSV (`ethiopian_natural_roast_profile.csv`):**
+```csv
+Time,Target,Note
+0:00,200,Charge
+0:30,220,
+1:00,245,Drying phase complete
+1:30,270,
+2:00,295,Start of Maillard
