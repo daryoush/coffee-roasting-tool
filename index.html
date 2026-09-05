@@ -197,15 +197,15 @@
   window.addEventListener('resize', resizeCanvas);
 
   // ==================== SETUP ====================
-  function addMinute(){
-    const container = document.getElementById('targetInputs');
-    const idx = container.children.length / 2;
-    const row = document.createElement('div');
-    row.className = 'target-grid';
-    row.innerHTML = '<label>Min '+(idx+1)+' Temp</label><input type="number" id="t'+idx+'" placeholder="°F" onchange="updateTargets()">'+
-                    '<label>Min '+(idx+1)+' Note</label><input type="text" id="n'+idx+'" placeholder="e.g. first crack" onchange="updateTargets()">';
-    container.appendChild(row);
-  }
+    function addMinute() {
+      const container = document.getElementById('targetInputs');
+      const idx = container.children.length; // ✅ FIXED: correctly uses row count as 0-based index
+      const row = document.createElement('div');
+      row.className = 'target-grid';
+      row.innerHTML = '<label>Min ' + (idx + 1) + ' Temp</label><input type="number" id="t' + idx + '" placeholder="°F" onchange="updateTargets()">' +
+        '<label>Min ' + (idx + 1) + ' Note</label><input type="text" id="n' + idx + '" placeholder="e.g. first crack" onchange="updateTargets()">';
+      container.appendChild(row);
+    }
   for(let i=0;i<12;i++) addMinute();
 
   function updateTargets(){
