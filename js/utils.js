@@ -53,7 +53,7 @@ function parseCSVLine(line){
 function extractNumber(text){
   const t = text.toLowerCase();
   const m = t.match(/(\d{2,4})(?:\s*(?:degrees|degree|fahrenheit|f\b))?/);
-  if(m) return parseInt(m[1]);
+  if(m) { const n = parseInt(m[1]); if(n >= 100 && n <= 450) return n; }
 
   const digitWords = {
     zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9,
@@ -84,14 +84,14 @@ function extractNumber(text){
     }
   }
   result += group;
-  if(result >= 150 && result <= 600) return result;
+  if(result >= 100 && result <= 450) return result;
 
   if(words.length >= 2){
     const first = digitWords[words[0]];
     const second = digitWords[words[1]];
     if(first >= 1 && first <= 9 && second >= 10 && second <= 99){
       const combo = first * 100 + second;
-      if(combo >= 150 && combo <= 600) return combo;
+      if(combo >= 100 && combo <= 450) return combo;
     }
   }
 
