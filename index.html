@@ -222,28 +222,110 @@
       background: #252019;
     }
 
-    /* Updated for 3-column layout: Time, Target, Note */
-    .target-grid {
-      display: grid;
-      grid-template-columns: 80px 90px 1fr;
-      gap: 8px;
-      margin: 10px 0;
-      align-items: center;
-    }
-
-    .target-grid label {
-      font-size: 12px;
-      color: #a09080;
-    }
-
-    .target-grid input[type="number"],
-    .target-grid input[type="text"] {
+    /* Editable Table Styles */
+    .profile-table {
       width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      background: #1a1512;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .profile-table th {
+      background: #2a2018;
+      color: #c17f45;
+      padding: 10px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 700;
+      border-bottom: 2px solid #3a3028;
+    }
+
+    .profile-table td {
+      padding: 6px;
+      border-bottom: 1px solid #2a2018;
+    }
+
+    .profile-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .profile-table input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      color: #e8e0d8;
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .profile-table input:focus {
+      background: #252019;
+      border-color: #5a5048;
+      outline: none;
+    }
+
+    .profile-table .time-cell {
+      width: 80px;
+    }
+
+    .profile-table .target-cell {
+      width: 90px;
+    }
+
+    .profile-table .note-cell {
+      width: auto;
+    }
+
+    .profile-table .action-cell {
+      width: 40px;
       text-align: center;
     }
 
-    .target-grid input[type="text"] {
-      text-align: left;
+    .profile-table .delete-btn {
+      background: transparent;
+      border: none;
+      color: #a84a3f;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .profile-table .delete-btn:hover {
+      background: #3a2018;
+    }
+
+    /* Color-coded note styles */
+    .note-high {
+      color: #ff6b5a;
+      font-weight: 700;
+    }
+
+    .note-medium {
+      color: #ffa94d;
+      font-weight: 600;
+    }
+
+    .note-low {
+      color: #8ecfff;
+      font-weight: 600;
+    }
+
+    .note-hold {
+      color: #8fdf8f;
+      font-weight: 600;
+    }
+
+    .note-charge {
+      color: #d9955a;
+      font-weight: 700;
+    }
+
+    .note-default {
+      color: #a09080;
     }
 
     .hearing-box {
@@ -399,10 +481,21 @@
         <button class="btn btn-gray" onclick="saveProfileCSV()">💾 Save Profile CSV</button>
         <input type="text" id="profileName" class="profile-name" placeholder="profile name" value="default">
         <button class="btn" onclick="loadSample()">↺ Load Default</button>
-        <button class="btn btn-blue" onclick="addStep()">+ Add Step</button>
+        <button class="btn btn-blue" onclick="addStepRow()">+ Add Row</button>
       </div>
 
-      <div id="targetInputs"></div>
+      <table class="profile-table" id="profileTable">
+        <thead>
+          <tr>
+            <th class="time-cell">Time (min)</th>
+            <th class="target-cell">Target (°F)</th>
+            <th class="note-cell">Note</th>
+            <th class="action-cell"></th>
+          </tr>
+        </thead>
+        <tbody id="profileTableBody">
+        </tbody>
+      </table>
 
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-green" onclick="startRoast()">▶ Start Roast</button>
@@ -534,58 +627,89 @@
       return isNaN(val) ? 0 : val;
     }
 
-    // ==================== SETUP ====================
-    function addStep(timeVal = '', targetVal = '', noteVal = '') {
-      const container = document.getElementById('targetInputs');
-      const row = document.createElement('div');
-      row.className = 'target-grid';
-      row.innerHTML = '<label>Time (min)</label><input type="text" class="time-input" placeholder="0.5 or 0:30" value="' + timeVal + '" onchange="updateProfile()">' +
-        '<label>Target (°F)</label><input type="number" class="target-input" placeholder="°F" value="' + targetVal + '" onchange="updateProfile()">' +
-        '<label>Note</label><input type="text" class="note-input" placeholder="e.g. first crack" value="' + noteVal + '" onchange="updateProfile()">';
-      container.appendChild(row);
+    // ==================== NOTE COLOR CODING ====================
+    function getNoteClass(note) {
+      if (!note) return 'note-default';
+      const lower = note.toLowerCase();
+      if (lower.includes('charge') || lower.includes('preheat')) return 'note-charge';
+      if (lower.includes('high') || lower.includes('full') || lower.includes('max')) return 'note-high';
+      if (lower.includes('medium') || lower.includes('med')) return 'note-medium';
+      if (lower.includes('low') || lower.includes('reduce') || lower.includes('decrease')) return 'note-low';
+      if (lower.includes('hold') || lower.includes('maintain')) return 'note-hold';
+      return 'note-default';
     }
 
-    function updateProfile() {
-      profileSteps = [];
-      const container = document.getElementById('targetInputs');
-      const rows = container.children;
-      for (let i = 0; i < rows.length; i++) {
-        const inputs = rows[i].querySelectorAll('input');
-        const timeMin = parseTimeToMinutes(inputs[0]?.value || '0');
-        const tv = parseFloat(inputs[1]?.value);
-        const target = isNaN(tv) ? null : tv;
-        const note = inputs[2]?.value?.trim() || '';
-        if (timeMin >= 0 && target !== null) {
-          profileSteps.push({ time: timeMin, target: target, note: note, spoken: false });
+    // ==================== TABLE MANAGEMENT ====================
+    function renderProfileTable() {
+      const tbody = document.getElementById('profileTableBody');
+      tbody.innerHTML = '';
+
+      profileSteps.forEach((step, idx) => {
+        const row = document.createElement('tr');
+        const noteClass = getNoteClass(step.note);
+
+        let timeStr = step.time;
+        if (Number.isInteger(step.time)) timeStr = step.time;
+        else {
+          const m = Math.floor(step.time);
+          const s = Math.round((step.time - m) * 60);
+          timeStr = m + ':' + String(s).padStart(2, '0');
         }
+
+        row.innerHTML = `
+        <td class="time-cell"><input type="text" value="${timeStr}" onchange="updateStepFromTable(${idx}, 'time', this.value)"></td>
+        <td class="target-cell"><input type="number" value="${step.target || ''}" onchange="updateStepFromTable(${idx}, 'target', this.value)"></td>
+        <td class="note-cell"><input type="text" value="${step.note || ''}" class="${noteClass}" onchange="updateStepFromTable(${idx}, 'note', this.value)"></td>
+        <td class="action-cell"><button class="delete-btn" onclick="deleteStep(${idx})">×</button></td>
+      `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function updateStepFromTable(idx, field, value) {
+      if (field === 'time') {
+        profileSteps[idx].time = parseTimeToMinutes(value);
+      } else if (field === 'target') {
+        const tv = parseFloat(value);
+        profileSteps[idx].target = isNaN(tv) ? null : tv;
+      } else if (field === 'note') {
+        profileSteps[idx].note = value.trim();
       }
       profileSteps.sort((a, b) => a.time - b.time);
+      renderProfileTable();
+    }
+
+    function addStepRow() {
+      const lastTime = profileSteps.length > 0 ? profileSteps[profileSteps.length - 1].time + 1 : 0;
+      profileSteps.push({ time: lastTime, target: null, note: '', spoken: false });
+      profileSteps.sort((a, b) => a.time - b.time);
+      renderProfileTable();
+    }
+
+    function deleteStep(idx) {
+      profileSteps.splice(idx, 1);
+      renderProfileTable();
     }
 
     function setProfile(steps) {
-      const container = document.getElementById('targetInputs');
-      container.innerHTML = '';
       profileSteps = steps.sort((a, b) => a.time - b.time);
-      profileSteps.forEach(step => {
-        addStep(step.time, step.target, step.note);
-      });
-      updateProfile();
+      renderProfileTable();
     }
 
     function loadSample() {
       const sampleSteps = [
-        { time: 0, target: 200, note: 'Charge' },
-        { time: 1, target: 220, note: '' },
-        { time: 2, target: 245, note: 'Start of Maillard — medium heat' },
-        { time: 3, target: 270, note: '' },
-        { time: 4, target: 295, note: '' },
-        { time: 5, target: 320, note: '' },
-        { time: 6, target: 345, note: '' },
-        { time: 7, target: 370, note: '' },
-        { time: 8, target: 395, note: 'First crack expected' },
-        { time: 9, target: 420, note: '' },
-        { time: 10, target: 440, note: '' },
-        { time: 11, target: 455, note: 'Second crack zone' }
+        { time: 0, target: 200, note: 'Charge — high flame' },
+        { time: 1, target: 220, note: 'high flame' },
+        { time: 2, target: 245, note: 'medium flame — Maillard' },
+        { time: 3, target: 270, note: 'medium flame' },
+        { time: 4, target: 295, note: 'medium flame' },
+        { time: 5, target: 320, note: 'reduce to low' },
+        { time: 6, target: 345, note: 'low flame' },
+        { time: 7, target: 370, note: 'low flame' },
+        { time: 8, target: 395, note: 'first crack expected' },
+        { time: 9, target: 420, note: 'hold temperature' },
+        { time: 10, target: 440, note: 'reduce gas' },
+        { time: 11, target: 455, note: 'second crack zone' }
       ];
       setProfile(sampleSteps);
       document.getElementById('profileName').value = 'default';
@@ -611,7 +735,6 @@
     }
 
     function saveProfileCSV() {
-      updateProfile();
       const name = document.getElementById('profileName').value.trim() || 'profile';
       const csv = profileToCSV();
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -950,7 +1073,6 @@
 
     // ==================== ROAST LOGIC ====================
     function startRoast() {
-      updateProfile();
       if (profileSteps.length < 2) { alert('Enter at least 2 target temperatures.'); return; }
       document.getElementById('setupPanel').style.display = 'none';
       document.getElementById('roastPanel').style.display = 'block';
