@@ -1,43 +1,40 @@
-You're absolutely right — I missed a critical bug in the fix. The issue is that `extractNumber()` has **two code paths**, and I only fixed one:
+I found the exact bug! It's a **CSS specificity issue**. 
 
-### 🐛 The Real Bug
-
-```javascript
-// PATH 1: Digit regex — returns IMMEDIATELY without range check! ❌
-const m = t.match(/(\d{2,4})(?:\s*(?:degrees|degree|fahrenheit|f\b))?/);
-if(m) return parseInt(m[1]);  // ← "500" returns 500 here, never validated
-
-// PATH 2: Word parser — this is where I put the range check ✅
-// ... (the 100-450 check I added)
+In your `styles.css`, you have a rule that sets the color for *all* inputs in the profile table:
+```css
+.profile-table input { color: #e8e0d8; }
 ```
+This rule has higher CSS specificity than the simple `.note-high` classes, so it completely overrides your color coding, forcing all note inputs to be the default light gray color (`#e8e0d8`).
 
-So when speech recognition outputs **"500"** (as digits), it gets returned immediately by the regex path — completely bypassing the range validation. Only word-based inputs like "five hundred" go through the validated path.
+### 🔧 The Fix
 
----
+We need to make the note color classes more specific so they override the default input color. We'll do this by targeting `.profile-table input.note-*` and adding `!important` to guarantee it wins.
 
-### 🔧 The Correct Fix
-
-Here are the corrected bash commands:
+Run these bash commands in your project root:
 
 ```bash
-# 1. Show the problematic regex line
-echo "=== Current regex path (no range check) ==="
-grep -n "if(m) return parseInt" js/utils.js
+# 1. Backup the current styles.css
+cp styles.css styles.css.bak
 
-# 2. Apply the fix: add range validation to the regex path
+# 2. Apply the fix: increase CSS specificity for note color classes
 sed -i.bak \
-  -e 's|if(m) return parseInt(m\[1\]);|if(m) { const n = parseInt(m[1]); if(n >= 100 \&\& n <= 450) return n; }|g' \
-  js/utils.js
+  -e 's/\.note-high{color:#ff6b5a;font-weight:700;}/.profile-table input.note-high{color:#ff6b5a !important;font-weight:700;}/' \
+  -e 's/\.note-medium{color:#ffa94d;font-weight:600;}/.profile-table input.note-medium{color:#ffa94d !important;font-weight:600;}/' \
+  -e 's/\.note-low{color:#8ecfff;font-weight:600;}/.profile-table input.note-low{color:#8ecfff !important;font-weight:600;}/' \
+  -e 's/\.note-hold{color:#8fdf8f;font-weight:600;}/.profile-table input.note-hold{color:#8fdf8f !important;font-weight:600;}/' \
+  -e 's/\.note-charge{color:#d9955a;font-weight:700;}/.profile-table input.note-charge{color:#d9955a !important;font-weight:700;}/' \
+  -e 's/\.note-default{color:#a09080;}/.profile-table input.note-default{color:#a09080 !important;}/' \
+  styles.css
 
-# 3. Verify the fix
-echo "=== After fix ==="
-grep -n "if(m) {" js/utils.js
+# 3. Verify the changes
+echo "=== Updated CSS rules ==="
+grep "note-" styles.css
 
 # 4. Show the diff
-diff -u js/utils.js.bak js/utils.js || true
+diff -u styles.css.bak styles.css || true
 
-# 5. Clean up
-rm js/utils.js.bak
+# 5. Clean up backup
+rm styles.css.bak
 ```
 
 ---
@@ -45,33 +42,28 @@ rm js/utils.js.bak
 ### 📝 Git Commit Message
 
 ```bash
-git add js/utils.js
-git commit -m "fix(speech): add range validation to digit regex path in extractNumber()" \
-  -m "Previous fix only validated the word-number parser path (100-450 °F)," \
-  -m "but the digit regex path returned immediately without validation." \
+git add styles.css
+git commit -m "fix(styles): resolve CSS specificity conflict blocking note color coding" \
+  -m "The generic '.profile-table input { color: #e8e0d8 }' rule was overriding" \
+  -m "the simpler '.note-high', '.note-medium', etc. classes, causing all profile" \
+  -m "notes to appear in the default light gray color." \
   -m "" \
-  -m "This caused transcriptions like '500' to bypass range checks and be" \
-  -m "logged as temperatures, while 'five hundred' correctly became observations." \
-  -m "" \
-  -m "Now both paths validate against the 100-450 °F range before returning."
+  -m "Fixed by increasing specificity to '.profile-table input.note-*' and adding" \
+  -m "!important to the color property, ensuring flame instruction keywords are" \
+  -m "properly color-coded in the editable profile table."
 ```
 
 **One-liner version:**
 ```bash
-git commit -m "fix(speech): validate digit regex path against 100-450 °F range — both code paths now consistent"
+git commit -m "fix(styles): increase CSS specificity for note color classes to override default input color"
 ```
 
----
-
-### 🧪 Test Cases After This Fix
-
-| Speech input | Regex path? | Word path? | Result |
-|--------------|-------------|------------|--------|
-| "500" | ✅ matched | — | ❌ **Now rejected** → observation |
-| "five hundred" | — | ✅ matched | ❌ Rejected → observation |
-| "450" | ✅ matched | — | ✅ Accepted → temperature |
-| "four fifty" | — | ✅ matched | ✅ Accepted → temperature |
-| "100" | ✅ matched | — | ✅ Accepted → temperature |
-| "99" | ✅ matched | — | ❌ Rejected → observation |
-
-Both paths now behave identically.
+### 🧪 How to Verify
+1. Run the commands above.
+2. Hard-refresh your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`).
+3. Click **"↺ Load Default"**.
+4. You should now see:
+   - "Charge — high flame" in **amber/red**
+   - "medium flame" in **orange**
+   - "reduce to low" in **blue**
+   - "hold temperature" in **green**
