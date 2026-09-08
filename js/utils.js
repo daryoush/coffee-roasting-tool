@@ -20,6 +20,8 @@ function getNoteClass(note){
   const lower = note.toLowerCase();
   if(lower.includes('charge') || lower.includes('preheat')) return 'note-charge';
   if(lower.includes('high') || lower.includes('full') || lower.includes('max')) return 'note-high';
+  if(lower.includes('medium-high') || lower.includes('med-high')) return 'note-medium-high';
+  if(lower.includes('medium-low') || lower.includes('med-low')) return 'note-medium-low';
   if(lower.includes('medium') || lower.includes('med')) return 'note-medium';
   if(lower.includes('low') || lower.includes('reduce') || lower.includes('decrease')) return 'note-low';
   if(lower.includes('hold') || lower.includes('maintain')) return 'note-hold';

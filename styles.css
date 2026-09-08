@@ -43,6 +43,8 @@ canvas{display:block;width:100%;height:100%;}
 .profile-table .delete-btn{background:transparent;border:none;color:#a84a3f;cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px;}
 .profile-table .delete-btn:hover{background:#3a2018;}
 .profile-table input.note-high{color:#ff6b5a !important;font-weight:700;}
+.profile-table input.note-medium-high{color:#ff8c42 !important;font-weight:600;}
+.profile-table input.note-medium-low{color:#ffc078 !important;font-weight:600;}
 .profile-table input.note-medium{color:#ffa94d !important;font-weight:600;}
 .profile-table input.note-low{color:#8ecfff !important;font-weight:600;}
 .profile-table input.note-hold{color:#8fdf8f !important;font-weight:600;}
