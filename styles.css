@@ -42,12 +42,12 @@ canvas{display:block;width:100%;height:100%;}
 .profile-table .action-cell{width:40px;text-align:center;}
 .profile-table .delete-btn{background:transparent;border:none;color:#a84a3f;cursor:pointer;font-size:18px;padding:4px 8px;border-radius:4px;}
 .profile-table .delete-btn:hover{background:#3a2018;}
-.note-high{color:#ff6b5a;font-weight:700;}
-.note-medium{color:#ffa94d;font-weight:600;}
-.note-low{color:#8ecfff;font-weight:600;}
-.note-hold{color:#8fdf8f;font-weight:600;}
-.note-charge{color:#d9955a;font-weight:700;}
-.note-default{color:#a09080;}
+.profile-table input.note-high{color:#ff6b5a !important;font-weight:700;}
+.profile-table input.note-medium{color:#ffa94d !important;font-weight:600;}
+.profile-table input.note-low{color:#8ecfff !important;font-weight:600;}
+.profile-table input.note-hold{color:#8fdf8f !important;font-weight:600;}
+.profile-table input.note-charge{color:#d9955a !important;font-weight:700;}
+.profile-table input.note-default{color:#a09080 !important;}
 .hearing-box{background:#1a1512;border:1px solid #3a3028;border-radius:8px;padding:10px;text-align:center;min-height:40px;}
 .legend-item{display:inline-flex;align-items:center;gap:6px;margin:0 12px;font-size:13px;color:#a09080;}
 .legend-line{width:20px;height:3px;border-radius:2px;}
