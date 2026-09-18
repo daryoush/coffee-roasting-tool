@@ -23,7 +23,7 @@ function initSpeech(){
   r.onstart = function(){
     isListening = true;
     updateMicUI();
-    showVoiceOk('Microphone active — speak temperatures or observations');
+    showVoiceOk('Microphone active — say "Start" to begin, or speak temperatures/observations');
   };
 
   r.onresult = function(e){
@@ -34,6 +34,17 @@ function initSpeech(){
     const clean = transcript.trim();
     console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
     document.getElementById('lastHeard').textContent = clean;
+
+    // NEW: Check for voice start command
+    if(roastReady && !roastActive){
+      if(/\bstart\b/i.test(clean)){
+        beginRoast();
+        document.getElementById('lastHeard').textContent = '✅ Roast started!';
+        clearingBuffer = true;
+        try{ r.stop(); }catch(err){}
+        return;
+      }
+    }
 
     clearTimeout(pauseTimer);
 
@@ -108,6 +119,7 @@ function initSpeech(){
 }
 
 function commitTemp(num, rawText){
+  if(!roastActive) return; // Ignore temps if roast hasn't officially started
   const now = Date.now();
   const lastReading = readings.length > 0 ? readings[readings.length-1] : null;
   if(lastReading && lastReading.value === num && (now - (startTime + lastReading.timeSec*1000)) < 2000){
@@ -120,6 +132,7 @@ function commitTemp(num, rawText){
 }
 
 function commitObs(text){
+  if(!roastActive) return; // Ignore obs if roast hasn't officially started
   if(!text || text.length < 2) return;
   const now = Date.now();
   const lastObs = observations.length > 0 ? observations[observations.length-1] : null;

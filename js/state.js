@@ -8,6 +8,7 @@ let timerInterval = null;
 let recognition = null;
 let isListening = false;
 let roastActive = false;
+let roastReady = false; // NEW: Tracks if profile is accepted but timer hasn't started
 let chartDPR = 2;
 let voiceRestartTimer = null;
 let pauseTimer = null;

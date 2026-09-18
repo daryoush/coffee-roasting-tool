@@ -1,16 +1,30 @@
-function startRoast(){
+function prepareRoast(){
   if(profileSteps.length < 2){alert('Enter at least 2 target temperatures.'); return;}
   document.getElementById('setupPanel').style.display='none';
   document.getElementById('roastPanel').style.display='block';
-  startTime = Date.now();
-  roastActive = true;
+  
+  roastReady = true;
+  roastActive = false;
   readings = []; minuteAvgs = []; observations = [];
   profileSteps.forEach(s => s.spoken = false);
   lastProcessedMinute = -1;
+  
   resizeCanvas();
+  drawChart();
+  
+  document.getElementById('timerDisplay').textContent = '00:00';
+  document.getElementById('gasInstruction').textContent = '🎤 Say "Start" to begin roasting';
+  document.getElementById('gasInstruction').className = 'instruction gas-ok';
+}
+
+function beginRoast(){
+  if(!roastReady) return;
+  roastActive = true;
+  startTime = Date.now();
   timerInterval = setInterval(tick, 1000);
   tick();
   document.getElementById('quickTemp').focus();
+  console.log('[ROAST] Begun via voice command');
 }
 
 function tick(){
@@ -139,23 +153,17 @@ function updateDisplay(elapsedMin){
 
 function endRoast(){
   roastActive = false;
+  roastReady = false;
   clearInterval(timerInterval);
   clearTimeout(voiceRestartTimer);
   clearTimeout(pauseTimer);
   if(recognition){try{recognition.stop();}catch(e){} isListening=false;}
-  document.getElementById('gasInstruction').textContent = 'ROAST COMPLETE — Great job!';
-  document.getElementById('gasInstruction').className = 'instruction gas-ok';
-  document.getElementById('micBtn').disabled = true;
-  document.getElementById('minuteNote').style.display = 'none';
   
-  const elapsedSec = Math.floor((Date.now()-startTime)/1000);
-  const mins = Math.floor(elapsedSec/60);
-  if(mins > lastProcessedMinute) {
-     for(let m = lastProcessedMinute + 1; m <= mins; m++) {
-         processMinuteEnd(m);
-     }
-  }
-  drawChart();
+  // Reset UI back to setup panel
+  document.getElementById('roastPanel').style.display='none';
+  document.getElementById('setupPanel').style.display='block';
+  document.getElementById('micBtn').disabled = false;
+  updateMicUI();
 }
 
 function exportData(){
