@@ -68,25 +68,60 @@ canvas{display:block;width:100%;height:100%;}
 .profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
 .profile-name{background:#1a1512;border:1px solid #5a5048;border-radius:6px;padding:8px 12px;color:#e8e0d8;font-size:14px;min-width:150px;}
 
-/* Full-screen chart mode */
+/* Override app container constraints in fullscreen */
+.fullscreen-chart{
+  max-width:100% !important;
+  width:100% !important;
+  padding:0 !important;
+  margin:0 !important;
+}
 .fullscreen-chart #chartWrap{
   margin:0 !important;
   padding:0 !important;
+  margin:0 !important;
+  border-radius:0 !important;
+}
+
+/* Full-screen chart mode - aggressive overrides */
+body.fullscreen-mode{
+  overflow:hidden !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.fullscreen-chart{
+  max-width:100% !important;
+  width:100vw !important;
+  padding:0 !important;
+  margin:0 !important;
+  position:relative;
+}
+.fullscreen-chart #chartWrap{
   position:fixed !important;
   top:0 !important;
   left:0 !important;
   width:100vw !important;
   height:100vh !important;
+  max-width:100vw !important;
+  max-height:100vh !important;
   z-index:9999 !important;
   border-radius:0 !important;
   border:none !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:#1a1512 !important;
+}
+.fullscreen-chart #chartWrap canvas{
+  width:100% !important;
+  height:100% !important;
+  display:block !important;
 }
 .fullscreen-chart .row,
 .fullscreen-chart .log,
 .fullscreen-chart #minuteNote,
 .fullscreen-chart .quick-input,
 .fullscreen-chart .obs-input,
-.fullscreen-chart div[style*="text-align:center;margin-top:8px"]{
+.fullscreen-chart div[style*="text-align:center;margin-top:8px"],
+.fullscreen-chart #setupPanel{
   display:none !important;
 }
 .fullscreen-chart .col{
@@ -135,18 +170,4 @@ canvas{display:block;width:100%;height:100%;}
 }
 .fullscreen-chart .fullscreen-exit-btn{
   display:block;
-}
-
-/* Override app container constraints in fullscreen */
-.fullscreen-chart{
-  max-width:100% !important;
-  width:100% !important;
-  padding:0 !important;
-  margin:0 !important;
-}
-.fullscreen-chart #chartWrap{
-  margin:0 !important;
-  padding:0 !important;
-  margin:0 !important;
-  border-radius:0 !important;
 }

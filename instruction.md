@@ -1,41 +1,121 @@
-The issue is that `#app` has `max-width:1000px` and `padding:16px`, which constrain the chart even in fullscreen mode. We need to override these when fullscreen is active.
-
-### 📜 Bash Commands to Fix
+The issue is that `position:fixed` should work, but there might be canvas sizing or other CSS constraints. Let me provide a more comprehensive fix:
 
 ```bash
 # 1. Backup current styles.css
 cp styles.css styles.css.bak
 
-# 2. Add CSS rules to override #app constraints in fullscreen mode
+# 2. Replace all fullscreen-related CSS with a more aggressive approach
+# First, remove the old fullscreen CSS
+sed -i.bak2 '/\/\* Full-screen chart mode \*\//,/^$/d' styles.css
+
+# 3. Add the corrected fullscreen CSS
 cat >> styles.css << 'EOF'
 
-/* Override app container constraints in fullscreen */
+/* Full-screen chart mode - aggressive overrides */
+body.fullscreen-mode{
+  overflow:hidden !important;
+  margin:0 !important;
+  padding:0 !important;
+}
 .fullscreen-chart{
   max-width:100% !important;
-  width:100% !important;
+  width:100vw !important;
   padding:0 !important;
   margin:0 !important;
+  position:relative;
 }
 .fullscreen-chart #chartWrap{
-  margin:0 !important;
+  position:fixed !important;
+  top:0 !important;
+  left:0 !important;
+  width:100vw !important;
+  height:100vh !important;
+  max-width:100vw !important;
+  max-height:100vh !important;
+  z-index:9999 !important;
   border-radius:0 !important;
+  border:none !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:#1a1512 !important;
+}
+.fullscreen-chart #chartWrap canvas{
+  width:100% !important;
+  height:100% !important;
+  display:block !important;
+}
+.fullscreen-chart .row,
+.fullscreen-chart .log,
+.fullscreen-chart #minuteNote,
+.fullscreen-chart .quick-input,
+.fullscreen-chart .obs-input,
+.fullscreen-chart div[style*="text-align:center;margin-top:8px"],
+.fullscreen-chart #setupPanel{
+  display:none !important;
+}
+.fullscreen-chart .col{
+  position:fixed;
+  top:10px;
+  left:10px;
+  z-index:10000;
+  background:rgba(26,21,18,0.85);
+  padding:10px 16px;
+  border-radius:10px;
+  border:1px solid #3a3028;
+  min-width:auto;
+}
+.fullscreen-chart .col .big-temp{
+  font-size:24px;
+  margin:2px 0;
+}
+.fullscreen-chart .col .instruction{
+  font-size:14px;
+  padding:8px;
+  margin:4px 0;
+}
+.fullscreen-chart .col:nth-child(2){
+  left:auto;
+  right:10px;
+}
+.fullscreen-chart .timer{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:10000;
+  background:rgba(26,21,18,0.85);
+  padding:6px 20px;
+  border-radius:10px;
+  border:1px solid #3a3028;
+  font-size:36px;
+}
+.fullscreen-exit-btn{
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:10000;
+  display:none;
+}
+.fullscreen-chart .fullscreen-exit-btn{
+  display:block;
 }
 EOF
 
-# 3. Fix the existing fullscreen-chart #chartWrap rule to ensure it truly fills viewport
-# Replace the existing #chartWrap fullscreen rule with a more aggressive one
-sed -i.bak2 's|\.fullscreen-chart #chartWrap{|.fullscreen-chart #chartWrap{\n  margin:0 !important;\n  padding:0 !important;|' styles.css
+# 4. Update js/chart.js to add body class toggle
+sed -i.bak3 's/function toggleChartFullscreen(){/function toggleChartFullscreen(){\n  document.body.classList.toggle("fullscreen-mode");/' js/chart.js
 
-# 4. Verify the changes
+# 5. Verify the changes
 echo "=== Verification ==="
-echo "Fullscreen-related rules:"
-grep -A2 "fullscreen-chart{" styles.css | head -10
+echo "Fullscreen CSS rules added:"
+grep -c "fullscreen" styles.css
+echo "fullscreen-related rules in styles.css"
 echo ""
-echo "#chartWrap fullscreen rule:"
-grep -A6 "\.fullscreen-chart #chartWrap{" styles.css | head -10
+echo "toggleChartFullscreen function:"
+grep -A3 "function toggleChartFullscreen" js/chart.js
 
-# 5. Clean up backup
-rm styles.css.bak styles.css.bak2
+# 6. Clean up backups
+rm styles.css.bak styles.css.bak2 styles.css.bak3
 ```
 
 ---
@@ -43,25 +123,27 @@ rm styles.css.bak styles.css.bak2
 ### 📝 Git Commit Message
 
 ```bash
-git add styles.css
-git commit -m "fix(chart): make full-screen chart truly fill browser viewport" \
-  -m "- Override #app container's max-width:1000px and padding:16px in fullscreen mode." \
-  -m "- Previously, the parent container constraints prevented the chart from" \
-  -m "  reaching the browser edges even with position:fixed and 100vw/100vh." \
-  -m "- Now #app gets max-width:100%, padding:0, margin:0 when fullscreen is active." \
-  -m "- Chart now extends edge-to-edge as expected."
+git add styles.css js/chart.js
+git commit -m "fix(chart): ensure fullscreen chart truly fills entire viewport" \
+  -m "- Added body.fullscreen-mode class to prevent scrollbars." \
+  -m "- More aggressive CSS overrides with !important on all dimensions." \
+  -m "- Explicitly set canvas width/height to 100% in fullscreen mode." \
+  -m "- Added max-width/max-height constraints to prevent overflow." \
+  -m "- Toggle body class in toggleChartFullscreen() for cleaner state management."
 ```
 
 **One-liner version:**
 ```bash
-git commit -m "fix(chart): override #app max-width/padding constraints so fullscreen chart fills entire viewport"
+git commit -m "fix(chart): aggressive CSS overrides to ensure fullscreen chart fills 100vw x 100vh"
 ```
 
 ### 🧪 How to Test
 1. Run the commands above.
 2. Hard-refresh your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`).
 3. Start a roast and click **"⛶ Full Screen"**.
-4. The chart should now extend to all four edges of the browser window with no gaps.
-5. Press **Escape** to return to normal view.
+4. Open browser DevTools (F12) and check:
+   - The `<body>` tag should have class `fullscreen-mode`
+   - The `#chartWrap` element should have `position: fixed; width: 100vw; height: 100vh;`
+5. The chart should now extend to all four edges with no gaps.
 
-The key fix was adding rules to override `#app`'s `max-width:1000px` and `padding:16px` when the `fullscreen-chart` class is active, allowing the fixed-position chart to truly fill the viewport.
+If it still doesn't work, please open DevTools and tell me what you see for the `#chartWrap` element's computed dimensions.

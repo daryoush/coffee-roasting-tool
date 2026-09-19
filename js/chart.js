@@ -30,6 +30,7 @@ function getNoteColor(note){
 
 // Full-screen chart toggle
 function toggleChartFullscreen(){
+  document.body.classList.toggle("fullscreen-mode");
   const app = document.getElementById('app');
   app.classList.toggle('fullscreen-chart');
   setTimeout(resizeCanvas, 50);
