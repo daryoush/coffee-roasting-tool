@@ -6,6 +6,7 @@ function prepareRoast(){
   roastReady = true;
   roastActive = false;
   micTestPassed = false;
+  micTestActive = false;
   readings = []; minuteAvgs = []; observations = [];
   profileSteps.forEach(s => s.spoken = false);
   lastProcessedMinute = -1;
@@ -14,8 +15,12 @@ function prepareRoast(){
   drawChart();
   
   document.getElementById('timerDisplay').textContent = '00:00';
+  document.getElementById('targetDisplay').textContent = 'Target: —';
+  document.getElementById('readingDisplay').textContent = 'Reading: —';
+  document.getElementById('estimateDisplay').textContent = 'Bean Est: —';
   document.getElementById('gasInstruction').textContent = '🎤 Click "Start Listening" to begin mic test';
   document.getElementById('gasInstruction').className = 'instruction gas-ok';
+  document.getElementById('minuteNote').style.display = 'none';
 }
 
 function beginRoast(){
@@ -127,7 +132,7 @@ function processMinuteEnd(minute){
 }
 
 function updateDisplay(elapsedMin){
-  // NEW: Interpolate target temperature continuously
+  // Interpolate target temperature continuously
   let currentTarget;
   
   if(elapsedMin <= profileSteps[0].time){
@@ -135,7 +140,6 @@ function updateDisplay(elapsedMin){
   } else if(elapsedMin >= profileSteps[profileSteps.length - 1].time){
     currentTarget = profileSteps[profileSteps.length - 1].target;
   } else {
-    // Find surrounding steps and interpolate
     for(let i = 0; i < profileSteps.length - 1; i++){
       if(elapsedMin >= profileSteps[i].time && elapsedMin < profileSteps[i + 1].time){
         const progress = (elapsedMin - profileSteps[i].time) / (profileSteps[i + 1].time - profileSteps[i].time);
@@ -148,14 +152,14 @@ function updateDisplay(elapsedMin){
   document.getElementById('targetDisplay').textContent = 'Target: '+Math.round(currentTarget)+'°F';
   const beanEst = estimateBeanTemp(elapsedMin);
   document.getElementById('estimateDisplay').textContent = 'Bean Est: '+beanEst+'°F';
-  const diff = currentTarget - beanEst;
-  const inst = document.getElementById('gasInstruction');
   
   // Don't override mic test or pre-start messages
-  if(micTestActive || (roastReady && !roastActive && !micTestPassed)){
+  if(micTestActive || (roastReady && !roastActive)){
     return;
   }
   
+  const diff = currentTarget - beanEst;
+  const inst = document.getElementById('gasInstruction');
   if(Math.abs(diff)<=4){
     inst.textContent = '✓ HOLD GAS — On target ('+beanEst+'°F)';
     inst.className = 'instruction gas-ok';
@@ -178,6 +182,55 @@ function endRoast(){
   clearTimeout(pauseTimer);
   if(recognition){try{recognition.stop();}catch(e){} isListening=false;}
   
+  document.getElementById('roastPanel').style.display='none';
+  document.getElementById('setupPanel').style.display='block';
+  document.getElementById('micBtn').disabled = false;
+  updateMicUI();
+}
+
+function exportData(){
+  let csv = 'Time(min),Target,Note,Readings,AvgReading\n';
+  for(let i=0; i<profileSteps.length; i++){
+    const step = profileSteps[i];
+    const nextTime = (i < profileSteps.length - 1) ? profileSteps[i+1].time : step.time + 1;
+    const rs = readings.filter(function(r){ return (r.timeSec/60) >= step.time && (r.timeSec/60) < nextTime; }).map(function(r){ return r.value; });
+    const avg = rs.length ? Math.round(rs.reduce((a,b)=>a+parseFloat(b),0)/rs.length) : '';
+    csv += step.time+','+step.target+',"'+(step.note||'').replace(/"/g, '""')+'","'+rs.join(';')+'",'+avg+'\n';
+  }
+  csv += '\nTime,Observation\n';
+  observations.forEach(function(o){
+    const m = Math.floor(o.timeSec/60), s = Math.floor(o.timeSec%60);
+    csv += m+':'+String(s).padStart(2,'0')+',"'+o.text.replace(/"/g, '""')+'"\n';
+  });
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'roast_'+new Date().toISOString().slice(0,19).replace(/:/g,'-')+'.csv';
+  a.click();
+}
+
+function submitQuick(){
+  const input = document.getElementById('quickTemp');
+  const val = parseFloat(input.value);
+  if(!isNaN(val) && val > 0){
+    console.log('[MANUAL] Temp entered:', val, '°F');
+    recordReading(val);
+    input.value = '';
+    input.focus();
+  }
+}
+
+function submitObs(){
+  const input = document.getElementById('quickObs');
+  const text = input.value.trim();
+  if(text){
+    console.log('[MANUAL] Observation entered:', text);
+    recordObservation(text);
+    input.value = '';
+    input.focus();
+  }
+}
+
 // Mic test functions
 function startMicTest(){
   micTestActive = true;
@@ -194,12 +247,11 @@ function startMicTest(){
 
 function handleMicTestResult(recognizedNum, rawText){
   const targetNum = micTestNumbers[micTestIndex];
-  const tolerance = 10; // Increased from 5 to 10 for better speech recognition tolerance
+  const tolerance = 10;
   
   console.log('[MIC TEST] Target:', targetNum, '| Recognized:', recognizedNum, '| Raw:', rawText);
   
   if(recognizedNum === null){
-    // Number wasn't parsed - ask user to try again
     document.getElementById('gasInstruction').textContent = '❌ Could not parse. Say ' + targetNum + ' clearly';
     speak('Could not understand. Please say ' + targetNum + ' clearly');
     return;
