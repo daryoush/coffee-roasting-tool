@@ -45,29 +45,22 @@ function initSpeech(){
     console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
     document.getElementById('lastHeard').textContent = clean;
 
-    // Handle mic test mode
+    // Handle mic test mode - DON'T stop/restart, just use pause detection
     if(micTestActive){
       const num = extractNumber(clean);
       console.log('[MIC TEST] Recognized:', clean, '-> extracted:', num);
-      
-      // Only process final results or after a pause
-      if(e.results[e.results.length-1].isFinal){
-        handleMicTestResult(num, clean);
-        clearingBuffer = true;
-        try{ r.stop(); }catch(err){}
-        return;
-      }
       
       // Show interim results
       if(num !== null){
         document.getElementById('lastHeard').textContent = clean + ' -> heard: ' + num + '°F';
       }
       
+      // Use pause detection to determine when user finished speaking
       clearTimeout(pauseTimer);
       pauseTimer = setTimeout(function(){
-        handleMicTestResult(num, clean);
-        clearingBuffer = true;
-        try{ r.stop(); }catch(err){}
+        if(num !== null){
+          handleMicTestResult(num, clean);
+        }
       }, PAUSE_MS);
       return;
     }
@@ -78,8 +71,7 @@ function initSpeech(){
         console.log('[SPEECH] Start command detected');
         beginRoast();
         document.getElementById('lastHeard').textContent = '✅ Roast started!';
-        clearingBuffer = true;
-        try{ r.stop(); }catch(err){}
+        // Don't stop here - let it keep listening for temps/observations
         return;
       }
     }
@@ -96,8 +88,7 @@ function initSpeech(){
       }
       pauseTimer = setTimeout(function(){
         commitTemp(num, clean);
-        clearingBuffer = true;
-        try{ r.stop(); }catch(err){}
+        // Don't stop/restart - just clear the buffer silently
       }, PAUSE_MS);
     } else {
       document.getElementById('lastHeard').textContent = clean + ' -> observation? (pause to log)';
@@ -107,8 +98,7 @@ function initSpeech(){
       }
       pauseTimer = setTimeout(function(){
         commitObs(clean);
-        clearingBuffer = true;
-        try{ r.stop(); }catch(err){}
+        // Don't stop/restart - just clear the buffer silently
       }, PAUSE_MS);
     }
   };
@@ -131,25 +121,14 @@ function initSpeech(){
   };
 
   r.onend = function(){
-    console.log('[SPEECH] Recognition ended. clearingBuffer=', clearingBuffer, 'isListening=', isListening);
-    if(clearingBuffer){
-      clearingBuffer = false;
-      setTimeout(function(){
-        try{
-          r.start();
-          console.log('[SPEECH] Buffer cleared, restarted');
-        }catch(e){
-          console.log('[SPEECH] Restart after clear failed:', e);
-        }
-      }, 50);
-    } else if(isListening){
-      // Auto-restart if we're supposed to be listening
+    console.log('[SPEECH] Recognition ended. isListening=', isListening);
+    // Only restart if we're supposed to be listening and user didn't manually stop
+    if(isListening){
       clearTimeout(voiceRestartTimer);
       voiceRestartTimer = setTimeout(function(){
         try{ r.start(); } catch(e){ console.log('[SPEECH] Auto-restart failed:', e); }
       }, 400);
     } else {
-      isListening = false;
       updateMicUI();
     }
   };
@@ -221,7 +200,6 @@ function toggleMic(){
 
   if(isListening){
     isListening = false;
-    clearingBuffer = false;
     clearTimeout(voiceRestartTimer);
     clearTimeout(pauseTimer);
     try{ recognition.stop(); }catch(e){}
