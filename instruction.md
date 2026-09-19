@@ -1,149 +1,130 @@
-The issue is that `position:fixed` should work, but there might be canvas sizing or other CSS constraints. Let me provide a more comprehensive fix:
+The diagnostic shows the fullscreen mode **isn't activating at all**! The classes aren't being applied:
+
+- `fullscreen-mode on body? false`
+- `fullscreen-chart on #app? false`
+- `#chartWrap` is `0 x 0` (collapsed)
+
+This means the button click isn't triggering the function. Let me fix this:
 
 ```bash
-# 1. Backup current styles.css
-cp styles.css styles.css.bak
+# 1. Verify the toggleChartFullscreen function exists in chart.js
+echo "=== Checking if function exists ==="
+grep -n "function toggleChartFullscreen" js/chart.js
 
-# 2. Replace all fullscreen-related CSS with a more aggressive approach
-# First, remove the old fullscreen CSS
-sed -i.bak2 '/\/\* Full-screen chart mode \*\//,/^$/d' styles.css
+# 2. If it doesn't exist or is broken, add it properly
+if ! grep -q "function toggleChartFullscreen" js/chart.js; then
+  echo "Function missing! Adding it..."
+  cat >> js/chart.js << 'EOF'
 
-# 3. Add the corrected fullscreen CSS
-cat >> styles.css << 'EOF'
+// Full-screen chart toggle
+function toggleChartFullscreen(){
+  console.log('[CHART] toggleChartFullscreen called');
+  const app = document.getElementById('app');
+  const body = document.body;
+  
+  body.classList.toggle('fullscreen-mode');
+  app.classList.toggle('fullscreen-chart');
+  
+  console.log('[CHART] After toggle:');
+  console.log('  body.classList:', body.className);
+  console.log('  #app.classList:', app.className);
+  
+  // Force resize after a short delay to let CSS apply
+  setTimeout(function(){
+    console.log('[CHART] Triggering resizeCanvas');
+    resizeCanvas();
+  }, 100);
+}
+EOF
+fi
 
-/* Full-screen chart mode - aggressive overrides */
-body.fullscreen-mode{
-  overflow:hidden !important;
-  margin:0 !important;
-  padding:0 !important;
-}
-.fullscreen-chart{
-  max-width:100% !important;
-  width:100vw !important;
-  padding:0 !important;
-  margin:0 !important;
-  position:relative;
-}
-.fullscreen-chart #chartWrap{
-  position:fixed !important;
-  top:0 !important;
-  left:0 !important;
-  width:100vw !important;
-  height:100vh !important;
-  max-width:100vw !important;
-  max-height:100vh !important;
-  z-index:9999 !important;
-  border-radius:0 !important;
-  border:none !important;
-  margin:0 !important;
-  padding:0 !important;
-  background:#1a1512 !important;
-}
-.fullscreen-chart #chartWrap canvas{
-  width:100% !important;
-  height:100% !important;
-  display:block !important;
-}
-.fullscreen-chart .row,
-.fullscreen-chart .log,
-.fullscreen-chart #minuteNote,
-.fullscreen-chart .quick-input,
-.fullscreen-chart .obs-input,
-.fullscreen-chart div[style*="text-align:center;margin-top:8px"],
-.fullscreen-chart #setupPanel{
-  display:none !important;
-}
-.fullscreen-chart .col{
-  position:fixed;
-  top:10px;
-  left:10px;
-  z-index:10000;
-  background:rgba(26,21,18,0.85);
-  padding:10px 16px;
-  border-radius:10px;
-  border:1px solid #3a3028;
-  min-width:auto;
-}
-.fullscreen-chart .col .big-temp{
-  font-size:24px;
-  margin:2px 0;
-}
-.fullscreen-chart .col .instruction{
-  font-size:14px;
-  padding:8px;
-  margin:4px 0;
-}
-.fullscreen-chart .col:nth-child(2){
-  left:auto;
-  right:10px;
-}
-.fullscreen-chart .timer{
-  position:fixed;
-  top:10px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:10000;
-  background:rgba(26,21,18,0.85);
-  padding:6px 20px;
-  border-radius:10px;
-  border:1px solid #3a3028;
-  font-size:36px;
-}
-.fullscreen-exit-btn{
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:10000;
-  display:none;
-}
-.fullscreen-chart .fullscreen-exit-btn{
-  display:block;
+# 3. Verify the button exists in index.html and has correct onclick
+echo ""
+echo "=== Checking button in index.html ==="
+grep -n "toggleChartFullscreen\|Full Screen" index.html
+
+# 4. If button is missing, add it
+if ! grep -q "toggleChartFullscreen" index.html; then
+  echo "Button missing! Adding it..."
+  sed -i.bak 's|<button class="btn btn-red" onclick="endRoast()">⏹ End Roast</button>|<button class="btn btn-red" onclick="endRoast()">⏹ End Roast</button>\n      <button class="btn btn-gray" onclick="toggleChartFullscreen()">⛶ Full Screen</button>|' index.html
+  rm index.html.bak
+fi
+
+# 5. Test the function manually from console
+cat > /tmp/test_fullscreen.js << 'EOF'
+// Paste this in console to test if the function works:
+console.log('Testing toggleChartFullscreen...');
+if(typeof toggleChartFullscreen === 'function'){
+  console.log('✅ Function exists');
+  toggleChartFullscreen();
+  setTimeout(function(){
+    const app = document.getElementById('app');
+    console.log('After calling function:');
+    console.log('  #app.classList:', app.className);
+    console.log('  Has fullscreen-chart?', app.classList.contains('fullscreen-chart'));
+  }, 200);
+} else {
+  console.log('❌ Function does NOT exist! Check js/chart.js');
 }
 EOF
 
-# 4. Update js/chart.js to add body class toggle
-sed -i.bak3 's/function toggleChartFullscreen(){/function toggleChartFullscreen(){\n  document.body.classList.toggle("fullscreen-mode");/' js/chart.js
-
-# 5. Verify the changes
-echo "=== Verification ==="
-echo "Fullscreen CSS rules added:"
-grep -c "fullscreen" styles.css
-echo "fullscreen-related rules in styles.css"
 echo ""
-echo "toggleChartFullscreen function:"
-grep -A3 "function toggleChartFullscreen" js/chart.js
+echo "=== Manual Test Command ==="
+echo "Paste this in the browser console to test:"
+cat /tmp/test_fullscreen.js
+rm /tmp/test_fullscreen.js
 
-# 6. Clean up backups
-rm styles.css.bak styles.css.bak2 styles.css.bak3
+# 6. Verify CSS classes exist
+echo ""
+echo "=== Checking CSS classes ==="
+grep -n "\.fullscreen-chart{" styles.css | head -3
+grep -n "\.fullscreen-chart #chartWrap{" styles.css | head -3
 ```
 
 ---
 
-### 📝 Git Commit Message
+### 🧪 Immediate Test
+
+**Paste this in the browser console right now:**
+
+```javascript
+// Quick test - does the function exist?
+console.log('toggleChartFullscreen exists?', typeof toggleChartFullscreen);
+
+// Try calling it manually
+if(typeof toggleChartFullscreen === 'function'){
+  toggleChartFullscreen();
+  setTimeout(function(){
+    const app = document.getElementById('app');
+    console.log('After manual call:');
+    console.log('  #app class:', app.className);
+    console.log('  Has fullscreen-chart?', app.classList.contains('fullscreen-chart'));
+    
+    const chartWrap = document.getElementById('chartWrap');
+    const rect = chartWrap.getBoundingClientRect();
+    console.log('  #chartWrap size:', Math.round(rect.width), 'x', Math.round(rect.height));
+  }, 200);
+} else {
+  console.log('❌ Function does not exist! The button cannot work.');
+}
+```
+
+---
+
+### 📝 Git Commit Message (after fixing)
 
 ```bash
-git add styles.css js/chart.js
-git commit -m "fix(chart): ensure fullscreen chart truly fills entire viewport" \
-  -m "- Added body.fullscreen-mode class to prevent scrollbars." \
-  -m "- More aggressive CSS overrides with !important on all dimensions." \
-  -m "- Explicitly set canvas width/height to 100% in fullscreen mode." \
-  -m "- Added max-width/max-height constraints to prevent overflow." \
-  -m "- Toggle body class in toggleChartFullscreen() for cleaner state management."
+git add js/chart.js index.html
+git commit -m "fix(chart): ensure fullscreen toggle function exists and button works" \
+  -m "- Added console logging to toggleChartFullscreen() for debugging." \
+  -m "- Function now toggles both body.fullscreen-mode and #app.fullscreen-chart." \
+  -m "- Added setTimeout to ensure CSS applies before resizing canvas." \
+  -m "- If function was missing, it's now properly defined in chart.js."
 ```
 
 **One-liner version:**
 ```bash
-git commit -m "fix(chart): aggressive CSS overrides to ensure fullscreen chart fills 100vw x 100vh"
+git commit -m "fix(chart): ensure toggleChartFullscreen function exists and properly toggles CSS classes"
 ```
 
-### 🧪 How to Test
-1. Run the commands above.
-2. Hard-refresh your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`).
-3. Start a roast and click **"⛶ Full Screen"**.
-4. Open browser DevTools (F12) and check:
-   - The `<body>` tag should have class `fullscreen-mode`
-   - The `#chartWrap` element should have `position: fixed; width: 100vw; height: 100vh;`
-5. The chart should now extend to all four edges with no gaps.
-
-If it still doesn't work, please open DevTools and tell me what you see for the `#chartWrap` element's computed dimensions.
+Run the diagnostic test above and tell me what it says. If the function doesn't exist, we'll know exactly what's wrong.
