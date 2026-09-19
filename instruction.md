@@ -1,263 +1,70 @@
-The issue is that after each number is recognized, the code calls `r.stop()` and then restarts the recognition, which triggers the browser to re-request microphone permission each time.
-
-Here's the fix — we need to keep the microphone running continuously during the test instead of stopping/restarting:
+Here are the bash commands to improve the contrast between `medium-low` and `medium` by shifting `medium-low` to a more distinct yellow tone:
 
 ```bash
-# Fix js/speech.js to not stop/restart during mic test
-cat > js/speech.js << 'EOF'
-function speak(text){
-  if(!text) return;
-  if(!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 1.0; u.pitch = 1.0; u.volume = 1.0;
-  window.speechSynthesis.speak(u);
-  console.log('[TTS] Speaking:', text);
-}
+# 1. Backup current styles.css
+cp styles.css styles.css.bak
 
-function initSpeech(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){
-    showVoiceWarning('Speech recognition not supported. Use the quick input boxes below.');
-    return null;
-  }
-  const r = new SR();
-  r.continuous = true;
-  r.interimResults = true;
-  r.lang = 'en-US';
-  r.maxAlternatives = 1;
+# 2. Update the medium-low color to a more distinct yellow
+#    - medium stays orange (#ffa94d)
+#    - medium-low becomes bright yellow (#ffd43b) for clear contrast
+sed -i.bak \
+  -e 's/\.profile-table input\.note-medium-low{color:#ffc078 !important;font-weight:600;}/.profile-table input.note-medium-low{color:#ffd43b !important;font-weight:600;}/' \
+  styles.css
 
-  r.onstart = function(){
-    isListening = true;
-    updateMicUI();
-    console.log('[SPEECH] Started. roastReady=', roastReady, 'roastActive=', roastActive, 'micTestPassed=', micTestPassed, 'micTestActive=', micTestActive);
-    
-    // Start mic test when entering roast panel for the first time
-    if(roastReady && !roastActive && !micTestPassed && !micTestActive){
-      setTimeout(function(){
-        console.log('[SPEECH] Triggering mic test');
-        startMicTest();
-      }, 300);
-    } else {
-      showVoiceOk('Microphone active');
-    }
-  };
+# 3. Verify the change
+echo "=== Updated color scheme ==="
+grep "note-medium\|note-high\|note-low" styles.css | grep "profile-table"
 
-  r.onresult = function(e){
-    let transcript = '';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      transcript += e.results[i][0].transcript;
-    }
-    const clean = transcript.trim();
-    console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
-    document.getElementById('lastHeard').textContent = clean;
+# 4. Show the diff
+diff -u styles.css.bak styles.css || true
 
-    // Handle mic test mode - DON'T stop/restart, just use pause detection
-    if(micTestActive){
-      const num = extractNumber(clean);
-      console.log('[MIC TEST] Recognized:', clean, '-> extracted:', num);
-      
-      // Show interim results
-      if(num !== null){
-        document.getElementById('lastHeard').textContent = clean + ' -> heard: ' + num + '°F';
-      }
-      
-      // Use pause detection to determine when user finished speaking
-      clearTimeout(pauseTimer);
-      pauseTimer = setTimeout(function(){
-        if(num !== null){
-          handleMicTestResult(num, clean);
-        }
-      }, PAUSE_MS);
-      return;
-    }
-
-    // Check for voice start command (only after mic test passes)
-    if(roastReady && !roastActive && micTestPassed){
-      if(/\bstart\b/i.test(clean)){
-        console.log('[SPEECH] Start command detected');
-        beginRoast();
-        document.getElementById('lastHeard').textContent = '✅ Roast started!';
-        // Don't stop here - let it keep listening for temps/observations
-        return;
-      }
-    }
-
-    // Normal roast mode: process temps and observations
-    clearTimeout(pauseTimer);
-
-    const num = extractNumber(clean);
-    if(num !== null){
-      document.getElementById('lastHeard').textContent = clean + ' -> candidate: ' + num + '°F (pause to log)';
-      if(e.results[e.results.length-1].isFinal){
-        commitTemp(num, clean);
-        return;
-      }
-      pauseTimer = setTimeout(function(){
-        commitTemp(num, clean);
-        // Don't stop/restart - just clear the buffer silently
-      }, PAUSE_MS);
-    } else {
-      document.getElementById('lastHeard').textContent = clean + ' -> observation? (pause to log)';
-      if(e.results[e.results.length-1].isFinal){
-        commitObs(clean);
-        return;
-      }
-      pauseTimer = setTimeout(function(){
-        commitObs(clean);
-        // Don't stop/restart - just clear the buffer silently
-      }, PAUSE_MS);
-    }
-  };
-
-  r.onerror = function(e){
-    console.log('[SPEECH] Error:', e.error);
-    if(e.error === 'not-allowed'){
-      showVoiceWarning('Microphone blocked. Allow microphone access in browser settings.');
-      isListening = false;
-      updateMicUI();
-    } else if(e.error === 'no-speech'){
-      console.log('[SPEECH] No speech detected');
-    } else if(e.error === 'network'){
-      showVoiceWarning('Network error with speech recognition.');
-    } else if(e.error === 'aborted'){
-      console.log('[SPEECH] Recognition aborted');
-    } else {
-      showVoiceWarning('Speech error: ' + e.error);
-    }
-  };
-
-  r.onend = function(){
-    console.log('[SPEECH] Recognition ended. isListening=', isListening);
-    // Only restart if we're supposed to be listening and user didn't manually stop
-    if(isListening){
-      clearTimeout(voiceRestartTimer);
-      voiceRestartTimer = setTimeout(function(){
-        try{ r.start(); } catch(e){ console.log('[SPEECH] Auto-restart failed:', e); }
-      }, 400);
-    } else {
-      updateMicUI();
-    }
-  };
-
-  return r;
-}
-
-function commitTemp(num, rawText){
-  if(!roastActive) return;
-  const now = Date.now();
-  const lastReading = readings.length > 0 ? readings[readings.length-1] : null;
-  if(lastReading && lastReading.value === num && (now - (startTime + lastReading.timeSec*1000)) < 2000){
-    console.log('[SPEECH] Debounced duplicate temp:', num);
-    return;
-  }
-  console.log('[SPEECH] COMMITTED temp:', num, '°F from "' + rawText + '"');
-  document.getElementById('lastHeard').textContent = rawText + ' -> LOGGED ' + num + '°F';
-  recordReading(num);
-}
-
-function commitObs(text){
-  if(!roastActive) return;
-  if(!text || text.length < 2) return;
-  const now = Date.now();
-  const lastObs = observations.length > 0 ? observations[observations.length-1] : null;
-  if(lastObs && lastObs.text === text && (now - (startTime + lastObs.timeSec*1000)) < 3000){
-    console.log('[SPEECH] Debounced duplicate observation:', text);
-    return;
-  }
-  console.log('[SPEECH] COMMITTED observation:', text);
-  document.getElementById('lastHeard').textContent = text + ' -> LOGGED observation';
-  recordObservation(text);
-}
-
-function showVoiceWarning(msg){
-  const w = document.getElementById('voiceWarning');
-  w.textContent = msg;
-  w.style.display = 'block';
-  document.getElementById('voiceOk').style.display = 'none';
-}
-
-function showVoiceOk(msg){
-  const o = document.getElementById('voiceOk');
-  o.textContent = msg;
-  o.style.display = 'block';
-  document.getElementById('voiceWarning').style.display = 'none';
-}
-
-function updateMicUI(){
-  const btn = document.getElementById('micBtn');
-  const dot = document.getElementById('statusDot');
-  const txt = document.getElementById('statusText');
-  if(isListening){
-    btn.textContent = '🎤 Stop Listening';
-    btn.classList.add('btn-red');
-    dot.classList.add('listening');
-    txt.textContent = 'Listening...';
-  } else {
-    btn.textContent = '🎤 Start Listening';
-    btn.classList.remove('btn-red');
-    dot.classList.remove('listening');
-    txt.textContent = 'Voice paused';
-  }
-}
-
-function toggleMic(){
-  if(!recognition) recognition = initSpeech();
-  if(!recognition) return;
-
-  if(isListening){
-    isListening = false;
-    clearTimeout(voiceRestartTimer);
-    clearTimeout(pauseTimer);
-    try{ recognition.stop(); }catch(e){}
-    updateMicUI();
-  } else {
-    try{ 
-      recognition.start();
-      console.log('[SPEECH] Start requested');
-    } catch(e){
-      console.log('[SPEECH] Start failed:', e);
-      showVoiceWarning('Could not start microphone. Reload page and allow mic access.');
-    }
-  }
-}
-EOF
-
-# Verify the fix
-echo "=== Verification ==="
-echo "Checking that r.stop() is NOT called during mic test or normal operation:"
-grep -n "r.stop()" js/speech.js
-echo ""
-echo "Should only appear in toggleMic() when user manually stops listening"
+# 5. Clean up backup
+rm styles.css.bak
 ```
+
+---
+
+### 🎨 New Color Gradient
+
+The updated visual spectrum now has much clearer separation:
+
+| Flame Level | Color | Hex Code | Visual |
+|-------------|-------|----------|--------|
+| 🔴 High | Red | `#ff6b5a` | Hottest |
+| 🟠 Medium-high | Orange-red | `#ff8c42` | ↓ |
+| 🟡 Medium | Orange | `#ffa94d` | ↓ |
+| 🟨 **Medium-low** | **Bright Yellow** | **`#ffd43b`** | **↓ (now clearly distinct!)** |
+| 🔵 Low | Blue | `#8ecfff` | Coolest |
+
+The key change: `medium-low` moved from a pale orange (`#ffc078`) that blended with `medium` to a bright yellow (`#ffd43b`) that creates a clear visual step in the gradient.
 
 ---
 
 ### 📝 Git Commit Message
 
 ```bash
-git add js/speech.js
-git commit -m "fix(speech): eliminate repeated mic permission prompts during test" \
-  -m "- Removed r.stop() calls during mic test and normal operation." \
-  -m "- Previously, stopping/restarting recognition after each number triggered" \
-  -m "  browser to re-request microphone permission multiple times." \
-  -m "- Now relies solely on pause detection (PAUSE_MS timeout) to determine" \
-  -m "  when user has finished speaking, keeping mic running continuously." \
-  -m "- Only stops when user explicitly clicks 'Stop Listening' button." \
-  -m "- This provides much better UX and matches user expectations."
+git add styles.css
+git commit -m "fix(styles): improve contrast between medium and medium-low flame notes" \
+  -m "- Changed note-medium-low from pale orange (#ffc078) to bright yellow (#ffd43b)." \
+  -m "- Previously, medium-low blended too closely with medium (both orange tones)." \
+  -m "- New color creates a clearer visual step in the flame intensity gradient:" \
+  -m "  🔴 high (#ff6b5a) → 🟠 med-high (#ff8c42) → 🟡 medium (#ffa94d)" \
+  -m "  → 🟨 med-low (#ffd43b) → 🔵 low (#8ecfff)" \
+  -m "- Makes it much easier to visually distinguish flame settings at a glance."
 ```
 
 **One-liner version:**
 ```bash
-git commit -m "fix(speech): keep mic running continuously during test to avoid repeated permission prompts"
+git commit -m "fix(styles): shift medium-low from pale orange to bright yellow for better contrast with medium"
 ```
 
 ### 🧪 How to Test
 1. Run the commands above.
 2. Hard-refresh your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`).
-3. Accept a profile and click "Start Listening".
-4. You should get the mic permission prompt **only once**.
-5. Say the 3 test numbers — the mic should stay active the entire time.
-6. After passing the test, say "Start" and continue roasting — no more permission prompts.
-
-The key change is that we no longer call `r.stop()` after processing each number. Instead, we just use the pause timer to detect when the user has finished speaking, and the recognition keeps running in the background.
+3. Edit the profile table and add these notes to see the gradient:
+   - "high flame" (red)
+   - "medium-high flame" (orange-red)
+   - "medium flame" (orange)
+   - "medium-low flame" (bright yellow)
+   - "low flame" (blue)
+4. You should now see a clear, distinct color step between medium (orange) and medium-low (yellow).
