@@ -68,15 +68,18 @@ canvas{display:block;width:100%;height:100%;}
 .profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
 .profile-name{background:#1a1512;border:1px solid #5a5048;border-radius:6px;padding:8px 12px;color:#e8e0d8;font-size:14px;min-width:150px;}
 
-/* Override app container constraints in fullscreen */
-
-
-/* Full-screen roast panel mode */
+/* Fullscreen mode */
 body.fullscreen-mode{
   overflow:hidden !important;
   background:#1a1512 !important;
 }
-.fullscreen-chart #roastPanel{
+body.fullscreen-mode #app{
+  max-width:100% !important;
+  width:100% !important;
+  padding:0 !important;
+  margin:0 !important;
+}
+body.fullscreen-mode #roastPanel{
   position:fixed !important;
   top:0 !important;
   left:0 !important;
@@ -94,55 +97,34 @@ body.fullscreen-mode{
   flex-direction:column !important;
   overflow:auto !important;
 }
-.fullscreen-chart #app{
-  max-width:100% !important;
-  width:100% !important;
-  padding:0 !important;
-  margin:0 !important;
-}
-.fullscreen-chart #chartWrap{
+body.fullscreen-mode #chartWrap{
   flex:1 !important;
   width:100% !important;
   min-height:300px !important;
   height:auto !important;
   margin:10px 0 !important;
-  border-radius:10px !important;
 }
-.fullscreen-chart .row{
+body.fullscreen-mode .row{
   flex-wrap:nowrap !important;
   gap:12px !important;
 }
-.fullscreen-chart .col{
+body.fullscreen-mode .col{
   min-width:0 !important;
 }
-.fullscreen-chart .big-temp{
+body.fullscreen-mode .big-temp{
   font-size:28px !important;
   margin:4px 0 !important;
 }
-.fullscreen-chart .timer{
+body.fullscreen-mode .timer{
   font-size:42px !important;
 }
-.fullscreen-chart .instruction{
+body.fullscreen-mode .instruction{
   font-size:16px !important;
   padding:10px !important;
 }
-.fullscreen-chart .log{
+body.fullscreen-mode .log{
   max-height:120px !important;
 }
-.fullscreen-chart .quick-input,
-.fullscreen-chart .obs-input{
-  margin-top:6px !important;
-}
-.fullscreen-chart #setupPanel{
+body.fullscreen-mode #setupPanel{
   display:none !important;
-}
-.fullscreen-chart .fullscreen-exit-btn{
-  display:inline-block !important;
-  position:fixed !important;
-  bottom:16px !important;
-  right:16px !important;
-  z-index:10000 !important;
-}
-.fullscreen-exit-btn{
-  display:none;
 }
