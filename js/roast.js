@@ -233,7 +233,7 @@ function startMicTest(){
   micTestIndex = 0;
   micTestNumbers = [];
   for(let i = 0; i < 3; i++){
-    micTestNumbers.push(Math.floor(Math.random() * 400) + 100); // 100-499
+    micTestNumbers.push(Math.floor(Math.random() * 351) + 100); // 100-499
   }
   document.getElementById('gasInstruction').textContent = '🎤 Mic Test: Say ' + micTestNumbers[0];
   document.getElementById('gasInstruction').className = 'instruction gas-ok';

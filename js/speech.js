@@ -39,7 +39,7 @@ function initSpeech(){
     }
     const clean = transcript.trim();
     console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
-    document.getElementById('lastHeard').textContent = clean;
+    if(micTestActive) console.log("[MIC TEST] Recognized:", clean, "-> extracted:", extractNumber(clean));    document.getElementById('lastHeard').textContent = clean;
 
     // NEW: Handle mic test
     if(micTestActive){
