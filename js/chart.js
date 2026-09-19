@@ -28,13 +28,6 @@ function getNoteColor(note){
   return '#4a7fa8';
 }
 
-// Full-screen chart toggle
-function toggleChartFullscreen(){
-  document.body.classList.toggle("fullscreen-mode");
-  const app = document.getElementById('app');
-  app.classList.toggle('fullscreen-chart');
-  setTimeout(resizeCanvas, 50);
-}
 
 // Listen for Escape key to exit fullscreen
 document.addEventListener('keydown', function(e){
@@ -204,3 +197,46 @@ function drawChart(){
     ctx.setLineDash([]);
   }
 }
+
+// Full-screen chart toggle using native Fullscreen API
+function toggleChartFullscreen(){
+  console.log('[CHART] toggleChartFullscreen called');
+  const chartWrap = document.getElementById('chartWrap');
+  
+  if(!document.fullscreenElement){
+    // Enter fullscreen
+    chartWrap.requestFullscreen().then(function(){
+      console.log('[CHART] ✅ Entered native fullscreen');
+      // Add class for styling overrides
+      document.getElementById('app').classList.add('fullscreen-chart');
+      document.body.classList.add('fullscreen-mode');
+      setTimeout(resizeCanvas, 100);
+    }).catch(function(err){
+      console.log('[CHART] ❌ Fullscreen failed:', err.message);
+      // Fallback to CSS-only method
+      document.getElementById('app').classList.toggle('fullscreen-chart');
+      document.body.classList.toggle('fullscreen-mode');
+      setTimeout(resizeCanvas, 100);
+    });
+  } else {
+    // Exit fullscreen
+    document.exitFullscreen().then(function(){
+      console.log('[CHART] ✅ Exited native fullscreen');
+      document.getElementById('app').classList.remove('fullscreen-chart');
+      document.body.classList.remove('fullscreen-mode');
+      setTimeout(resizeCanvas, 100);
+    });
+  }
+}
+
+// Listen for fullscreen change to update UI
+document.addEventListener('fullscreenchange', function(){
+  console.log('[CHART] fullscreenchange event');
+  if(!document.fullscreenElement){
+    document.getElementById('app').classList.remove('fullscreen-chart');
+    document.body.classList.remove('fullscreen-mode');
+    setTimeout(resizeCanvas, 100);
+  }
+});
+
+// Listen for Escape key (native fullscreen handles this automatically)

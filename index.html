@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Roast Commander — Coffee Roast Temperature Controller</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 <div id="app">
@@ -85,7 +85,7 @@
     </div>
 
     <div style="margin-top:14px;">
-      <div id="chartWrap"><canvas id="chartCanvas"></canvas><button class="btn btn-red fullscreen-exit-btn" onclick="toggleChartFullscreen()">✕ Exit Full Screen</button></div>
+      <div id="chartWrap" style="position:relative;width:100%;height:380px;"><canvas id="chartCanvas"></canvas><button class="btn btn-red fullscreen-exit-btn" onclick="toggleChartFullscreen()">✕ Exit Full Screen</button></div>
       <div style="text-align:center;margin-top:8px;">
         <span class="legend-item"><span class="legend-line" style="background:#4a7fa8;"></span>Target</span>
         <span class="legend-item"><span class="legend-dot" style="background:#c17f45;"></span>Reading</span>
