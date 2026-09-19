@@ -42,24 +42,24 @@ function initSpeech(){
     if(micTestActive) console.log("[MIC TEST] Recognized:", clean, "-> extracted:", extractNumber(clean));    document.getElementById('lastHeard').textContent = clean;
 
     // NEW: Handle mic test
+    // Handle mic test
     if(micTestActive){
       const num = extractNumber(clean);
-      if(num !== null){
-        document.getElementById('lastHeard').textContent = clean + ' -> heard: ' + num + '°F';
-        if(e.results[e.results.length-1].isFinal){
-          handleMicTestResult(num);
-          clearingBuffer = true;
-          try{ r.stop(); }catch(err){}
-          return;
-        }
-        pauseTimer = setTimeout(function(){
-          handleMicTestResult(num);
-          clearingBuffer = true;
-          try{ r.stop(); }catch(err){}
-        }, PAUSE_MS);
+      console.log("[MIC TEST] Recognized:", clean, "-> extracted:", num);
+      
+      if(e.results[e.results.length-1].isFinal || clean.length > 0){
+        handleMicTestResult(num, clean);
+        clearingBuffer = true;
+        try{ r.stop(); }catch(err){}
+        return;
       }
-      return; // Don't process as temp/obs during mic test
-    }
+      
+      // For interim results, show what was heard
+      if(num !== null){
+        document.getElementById("lastHeard").textContent = clean + " -> heard: " + num + "°F";
+      }
+      return;
+    }    }
 
     // Check for voice start command
     if(roastReady && !roastActive && micTestPassed){

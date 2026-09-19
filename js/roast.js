@@ -178,73 +178,35 @@ function endRoast(){
   clearTimeout(pauseTimer);
   if(recognition){try{recognition.stop();}catch(e){} isListening=false;}
   
-  document.getElementById('roastPanel').style.display='none';
-  document.getElementById('setupPanel').style.display='block';
-  document.getElementById('micBtn').disabled = false;
-  updateMicUI();
-}
-
-function exportData(){
-  let csv = 'Time(min),Target,Note,Readings,AvgReading\n';
-  for(let i=0; i<profileSteps.length; i++){
-    const step = profileSteps[i];
-    const nextTime = (i < profileSteps.length - 1) ? profileSteps[i+1].time : step.time + 1;
-    const rs = readings.filter(function(r){ return (r.timeSec/60) >= step.time && (r.timeSec/60) < nextTime; }).map(function(r){ return r.value; });
-    const avg = rs.length ? Math.round(rs.reduce((a,b)=>a+parseFloat(b),0)/rs.length) : '';
-    csv += step.time+','+step.target+',"'+(step.note||'').replace(/"/g, '""')+'","'+rs.join(';')+'",'+avg+'\n';
-  }
-  csv += '\nTime,Observation\n';
-  observations.forEach(function(o){
-    const m = Math.floor(o.timeSec/60), s = Math.floor(o.timeSec%60);
-    csv += m+':'+String(s).padStart(2,'0')+',"'+o.text.replace(/"/g, '""')+'"\n';
-  });
-  const blob = new Blob([csv],{type:'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'roast_'+new Date().toISOString().slice(0,19).replace(/:/g,'-')+'.csv';
-  a.click();
-}
-
-function submitQuick(){
-  const input = document.getElementById('quickTemp');
-  const val = parseFloat(input.value);
-  if(!isNaN(val) && val > 0){
-    console.log('[MANUAL] Temp entered:', val, '°F');
-    recordReading(val);
-    input.value = '';
-    input.focus();
-  }
-}
-
-function submitObs(){
-  const input = document.getElementById('quickObs');
-  const text = input.value.trim();
-  if(text){
-    console.log('[MANUAL] Observation entered:', text);
-    recordObservation(text);
-    input.value = '';
-    input.focus();
-  }
-}
-
 // Mic test functions
 function startMicTest(){
   micTestActive = true;
   micTestIndex = 0;
   micTestNumbers = [];
   for(let i = 0; i < 3; i++){
-    micTestNumbers.push(Math.floor(Math.random() * 351) + 100); // 100-499
+    micTestNumbers.push(Math.floor(Math.random() * 351) + 100); // 100-450
   }
+  console.log('[MIC TEST] Target numbers:', micTestNumbers);
   document.getElementById('gasInstruction').textContent = '🎤 Mic Test: Say ' + micTestNumbers[0];
   document.getElementById('gasInstruction').className = 'instruction gas-ok';
   speak('Microphone test. Please say ' + micTestNumbers[0]);
 }
 
-function handleMicTestResult(recognizedNum){
+function handleMicTestResult(recognizedNum, rawText){
   const targetNum = micTestNumbers[micTestIndex];
-  const tolerance = 5;
+  const tolerance = 10; // Increased from 5 to 10 for better speech recognition tolerance
+  
+  console.log('[MIC TEST] Target:', targetNum, '| Recognized:', recognizedNum, '| Raw:', rawText);
+  
+  if(recognizedNum === null){
+    // Number wasn't parsed - ask user to try again
+    document.getElementById('gasInstruction').textContent = '❌ Could not parse. Say ' + targetNum + ' clearly';
+    speak('Could not understand. Please say ' + targetNum + ' clearly');
+    return;
+  }
   
   if(Math.abs(recognizedNum - targetNum) <= tolerance){
+    document.getElementById('lastHeard').textContent = '✅ ' + recognizedNum + '°F - Correct!';
     micTestIndex++;
     if(micTestIndex >= 3){
       micTestActive = false;
@@ -256,7 +218,8 @@ function handleMicTestResult(recognizedNum){
       speak('Good. Now say ' + micTestNumbers[micTestIndex]);
     }
   } else {
+    document.getElementById('lastHeard').textContent = '❌ Heard ' + recognizedNum + '°F but expected ' + targetNum + '°F';
     document.getElementById('gasInstruction').textContent = '❌ Try again. Say ' + targetNum;
-    speak('Didn\'t catch that. Please say ' + targetNum + ' again');
+    speak('That was ' + recognizedNum + '. Please say ' + targetNum + ' instead');
   }
 }
