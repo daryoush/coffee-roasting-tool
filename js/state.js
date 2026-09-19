@@ -8,10 +8,16 @@ let timerInterval = null;
 let recognition = null;
 let isListening = false;
 let roastActive = false;
-let roastReady = false; // NEW: Tracks if profile is accepted but timer hasn't started
+let roastReady = false;
 let chartDPR = 2;
 let voiceRestartTimer = null;
 let pauseTimer = null;
 let clearingBuffer = false;
 let lastProcessedMinute = -1;
 const PAUSE_MS = 800;
+
+// Mic test state
+let micTestActive = false;
+let micTestNumbers = [];
+let micTestIndex = 0;
+let micTestPassed = false;

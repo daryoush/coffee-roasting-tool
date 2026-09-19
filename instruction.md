@@ -1,13 +1,9 @@
-You are absolutely right. The previous `sed` and `tail` patching commands were too fragile and likely corrupted `js/roast.js` (e.g., by duplicating functions or breaking syntax), which causes the JavaScript to silently crash when you click the button.
+I'll implement both changes with complete, reliable file updates. Here are the bash commands:
 
-Let's fix this cleanly by providing the **complete, corrected files** for the modules we need to change. This is 100% reliable.
-
-### 📜 Reliable Bash Commands to Fix the Flow
-
-Run these from your project root. This will safely overwrite the affected files with the correct logic.
+### 📜 Bash Commands to Implement Both Changes
 
 ```bash
-# 1. Update js/state.js to add the roastReady flag
+# 1. Update js/state.js to add mic test state variables
 cat > js/state.js << 'EOF'
 // Global application state
 let profileSteps = [];
@@ -19,20 +15,22 @@ let timerInterval = null;
 let recognition = null;
 let isListening = false;
 let roastActive = false;
-let roastReady = false; // NEW: Tracks if profile is accepted but timer hasn't started
+let roastReady = false;
 let chartDPR = 2;
 let voiceRestartTimer = null;
 let pauseTimer = null;
 let clearingBuffer = false;
 let lastProcessedMinute = -1;
 const PAUSE_MS = 800;
+
+// Mic test state
+let micTestActive = false;
+let micTestNumbers = [];
+let micTestIndex = 0;
+let micTestPassed = false;
 EOF
 
-# 2. Update index.html (change button text and onclick handler)
-sed -i.bak 's/onclick="startRoast()">▶ Start Roast/onclick="prepareRoast()">✅ Accept Profile/' index.html
-rm index.html.bak
-
-# 3. Provide the complete, corrected js/roast.js
+# 2. Update js/roast.js with interpolated target and mic test functions
 cat > js/roast.js << 'EOF'
 function prepareRoast(){
   if(profileSteps.length < 2){alert('Enter at least 2 target temperatures.'); return;}
@@ -41,6 +39,7 @@ function prepareRoast(){
   
   roastReady = true;
   roastActive = false;
+  micTestPassed = false;
   readings = []; minuteAvgs = []; observations = [];
   profileSteps.forEach(s => s.spoken = false);
   lastProcessedMinute = -1;
@@ -49,12 +48,12 @@ function prepareRoast(){
   drawChart();
   
   document.getElementById('timerDisplay').textContent = '00:00';
-  document.getElementById('gasInstruction').textContent = '🎤 Say "Start" to begin roasting';
+  document.getElementById('gasInstruction').textContent = '🎤 Click "Start Listening" to begin mic test';
   document.getElementById('gasInstruction').className = 'instruction gas-ok';
 }
 
 function beginRoast(){
-  if(!roastReady) return;
+  if(!roastReady || !micTestPassed) return;
   roastActive = true;
   startTime = Date.now();
   timerInterval = setInterval(tick, 1000);
@@ -162,19 +161,35 @@ function processMinuteEnd(minute){
 }
 
 function updateDisplay(elapsedMin){
-  let currentTarget = profileSteps.length > 0 ? profileSteps[0].target : 200;
-  for(let i = profileSteps.length - 1; i >= 0; i--){
-    if(elapsedMin >= profileSteps[i].time){
-      currentTarget = profileSteps[i].target;
-      break;
+  // NEW: Interpolate target temperature continuously
+  let currentTarget;
+  
+  if(elapsedMin <= profileSteps[0].time){
+    currentTarget = profileSteps[0].target;
+  } else if(elapsedMin >= profileSteps[profileSteps.length - 1].time){
+    currentTarget = profileSteps[profileSteps.length - 1].target;
+  } else {
+    // Find surrounding steps and interpolate
+    for(let i = 0; i < profileSteps.length - 1; i++){
+      if(elapsedMin >= profileSteps[i].time && elapsedMin < profileSteps[i + 1].time){
+        const progress = (elapsedMin - profileSteps[i].time) / (profileSteps[i + 1].time - profileSteps[i].time);
+        currentTarget = profileSteps[i].target + (profileSteps[i + 1].target - profileSteps[i].target) * progress;
+        break;
+      }
     }
   }
   
-  document.getElementById('targetDisplay').textContent = 'Target: '+currentTarget+'°F';
+  document.getElementById('targetDisplay').textContent = 'Target: '+Math.round(currentTarget)+'°F';
   const beanEst = estimateBeanTemp(elapsedMin);
   document.getElementById('estimateDisplay').textContent = 'Bean Est: '+beanEst+'°F';
   const diff = currentTarget - beanEst;
   const inst = document.getElementById('gasInstruction');
+  
+  // Don't override mic test or pre-start messages
+  if(micTestActive || (roastReady && !roastActive && !micTestPassed)){
+    return;
+  }
+  
   if(Math.abs(diff)<=4){
     inst.textContent = '✓ HOLD GAS — On target ('+beanEst+'°F)';
     inst.className = 'instruction gas-ok';
@@ -190,12 +205,13 @@ function updateDisplay(elapsedMin){
 function endRoast(){
   roastActive = false;
   roastReady = false;
+  micTestActive = false;
+  micTestPassed = false;
   clearInterval(timerInterval);
   clearTimeout(voiceRestartTimer);
   clearTimeout(pauseTimer);
   if(recognition){try{recognition.stop();}catch(e){} isListening=false;}
   
-  // Reset UI back to setup panel
   document.getElementById('roastPanel').style.display='none';
   document.getElementById('setupPanel').style.display='block';
   document.getElementById('micBtn').disabled = false;
@@ -244,10 +260,43 @@ function submitObs(){
     input.focus();
   }
 }
+
+// Mic test functions
+function startMicTest(){
+  micTestActive = true;
+  micTestIndex = 0;
+  micTestNumbers = [];
+  for(let i = 0; i < 3; i++){
+    micTestNumbers.push(Math.floor(Math.random() * 400) + 100); // 100-499
+  }
+  document.getElementById('gasInstruction').textContent = '🎤 Mic Test: Say ' + micTestNumbers[0];
+  document.getElementById('gasInstruction').className = 'instruction gas-ok';
+  speak('Microphone test. Please say ' + micTestNumbers[0]);
+}
+
+function handleMicTestResult(recognizedNum){
+  const targetNum = micTestNumbers[micTestIndex];
+  const tolerance = 5;
+  
+  if(Math.abs(recognizedNum - targetNum) <= tolerance){
+    micTestIndex++;
+    if(micTestIndex >= 3){
+      micTestActive = false;
+      micTestPassed = true;
+      document.getElementById('gasInstruction').textContent = '✅ Mic test passed! Preheat pan and say "Start" when beans are dumped';
+      speak('Microphone test passed. Preheat the pan and say start when the beans are dumped to the preheated pan');
+    } else {
+      document.getElementById('gasInstruction').textContent = '🎤 Mic Test: Say ' + micTestNumbers[micTestIndex];
+      speak('Good. Now say ' + micTestNumbers[micTestIndex]);
+    }
+  } else {
+    document.getElementById('gasInstruction').textContent = '❌ Try again. Say ' + targetNum;
+    speak('Didn\'t catch that. Please say ' + targetNum + ' again');
+  }
+}
 EOF
 
-# 4. Update js/speech.js to listen for the "Start" command
-# We will recreate it cleanly to ensure the onresult handler is perfect
+# 3. Update js/speech.js to handle mic test flow
 cat > js/speech.js << 'EOF'
 function speak(text){
   if(!text) return;
@@ -274,7 +323,13 @@ function initSpeech(){
   r.onstart = function(){
     isListening = true;
     updateMicUI();
-    showVoiceOk('Microphone active — say "Start" to begin, or speak temperatures/observations');
+    
+    // NEW: Start mic test when listening begins in pre-roast state
+    if(roastReady && !roastActive && !micTestPassed && !micTestActive){
+      setTimeout(startMicTest, 500); // Small delay to let UI settle
+    } else {
+      showVoiceOk('Microphone active');
+    }
   };
 
   r.onresult = function(e){
@@ -286,8 +341,28 @@ function initSpeech(){
     console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
     document.getElementById('lastHeard').textContent = clean;
 
-    // NEW: Check for voice start command
-    if(roastReady && !roastActive){
+    // NEW: Handle mic test
+    if(micTestActive){
+      const num = extractNumber(clean);
+      if(num !== null){
+        document.getElementById('lastHeard').textContent = clean + ' -> heard: ' + num + '°F';
+        if(e.results[e.results.length-1].isFinal){
+          handleMicTestResult(num);
+          clearingBuffer = true;
+          try{ r.stop(); }catch(err){}
+          return;
+        }
+        pauseTimer = setTimeout(function(){
+          handleMicTestResult(num);
+          clearingBuffer = true;
+          try{ r.stop(); }catch(err){}
+        }, PAUSE_MS);
+      }
+      return; // Don't process as temp/obs during mic test
+    }
+
+    // Check for voice start command
+    if(roastReady && !roastActive && micTestPassed){
       if(/\bstart\b/i.test(clean)){
         beginRoast();
         document.getElementById('lastHeard').textContent = '✅ Roast started!';
@@ -370,7 +445,7 @@ function initSpeech(){
 }
 
 function commitTemp(num, rawText){
-  if(!roastActive) return; // Ignore temps if roast hasn't officially started
+  if(!roastActive) return;
   const now = Date.now();
   const lastReading = readings.length > 0 ? readings[readings.length-1] : null;
   if(lastReading && lastReading.value === num && (now - (startTime + lastReading.timeSec*1000)) < 2000){
@@ -383,7 +458,7 @@ function commitTemp(num, rawText){
 }
 
 function commitObs(text){
-  if(!roastActive) return; // Ignore obs if roast hasn't officially started
+  if(!roastActive) return;
   if(!text || text.length < 2) return;
   const now = Date.now();
   const lastObs = observations.length > 0 ? observations[observations.length-1] : null;
@@ -446,11 +521,11 @@ function toggleMic(){
 }
 EOF
 
-# 5. Verify the changes
+# 4. Verify the changes
 echo "=== Verification ==="
-grep "roastReady" js/state.js
-grep "prepareRoast" index.html
-grep "beginRoast" js/speech.js
+grep "micTestActive" js/state.js
+grep "interpolate" js/roast.js
+grep "startMicTest" js/speech.js
 ```
 
 ---
@@ -458,21 +533,35 @@ grep "beginRoast" js/speech.js
 ### 📝 Git Commit Message
 
 ```bash
-git add js/state.js js/roast.js js/speech.js index.html
-git commit -m "fix: reliably decouple profile acceptance from roast timer start" \
-  -m "- Replaced fragile patching with complete, corrected file contents." \
-  -m "- 'Accept Profile' button now transitions to roast panel and waits." \
-  -m "- Timer only begins when user says the voice command 'Start'." \
-  - "- Added 'roastReady' state to gate voice commands and prevent accidental starts." \
-  - "- 'End Roast' now cleanly resets the app back to the setup panel." \
-  - "- Speech recognition now ignores temp/observation logging until roast officially begins."
+git add js/state.js js/roast.js js/speech.js
+git commit -m "feat: continuous target interpolation and mandatory mic test before roast" \
+  -m "- Target temperature now updates every second via linear interpolation between profile steps." \
+  -m "- Added mandatory microphone test before roast can begin:" \
+  -m "  * System generates 3 random numbers (100-499°F) and asks user to say them." \
+  -m "  * Validates each number within ±5°F tolerance." \
+  -m "  * Retries if recognition fails, proceeds only after all 3 pass." \
+  -m "  * On success, speaks: 'Preheat the pan and say start when beans are dumped'." \
+  -m "- 'Start' voice command now only works after mic test passes." \
+  -m "- Gas instruction banner no longer overrides mic test messages."
+```
+
+**One-liner version:**
+```bash
+git commit -m "feat: smooth target interpolation and 3-number mic validation test before roast start"
 ```
 
 ### 🧪 How to Test
-1. Run the commands above.
-2. **Hard-refresh** your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`) to clear any cached, broken JS.
-3. Open the browser console (F12) to ensure there are **no red errors**.
-4. Click **"✅ Accept Profile"**. The UI will switch to the roast panel. The timer will stay at `00:00` and the banner will say: *🎤 Say "Start" to begin roasting*.
-5. Click **"🎤 Start Listening"** and say **"Start"**. 
-6. The timer will immediately begin counting, and the banner will switch to the normal gas instructions. 
-7. Click **"⏹ End Roast"**. The app will cleanly return to the setup panel.
+
+**Test 1: Continuous Target Interpolation**
+1. Load a profile with steps at different times (e.g., 0min=200°F, 2min=300°F).
+2. Accept profile and start the roast.
+3. Watch the "Target" display at 1 minute — it should show ~250°F (interpolated), not jump from 200 to 300.
+
+**Test 2: Microphone Test**
+1. Accept a profile.
+2. Click "Start Listening".
+3. The system will speak: "Microphone test. Please say [number]".
+4. Say the number shown in the banner.
+5. Repeat for all 3 numbers.
+6. After passing, you'll hear: "Microphone test passed. Preheat the pan and say start when the beans are dumped to the preheated pan".
+7. Now say "Start" to begin the actual roast.

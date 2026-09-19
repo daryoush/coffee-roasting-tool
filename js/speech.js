@@ -23,7 +23,13 @@ function initSpeech(){
   r.onstart = function(){
     isListening = true;
     updateMicUI();
-    showVoiceOk('Microphone active — say "Start" to begin, or speak temperatures/observations');
+    
+    // NEW: Start mic test when listening begins in pre-roast state
+    if(roastReady && !roastActive && !micTestPassed && !micTestActive){
+      setTimeout(startMicTest, 500); // Small delay to let UI settle
+    } else {
+      showVoiceOk('Microphone active');
+    }
   };
 
   r.onresult = function(e){
@@ -35,8 +41,28 @@ function initSpeech(){
     console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
     document.getElementById('lastHeard').textContent = clean;
 
-    // NEW: Check for voice start command
-    if(roastReady && !roastActive){
+    // NEW: Handle mic test
+    if(micTestActive){
+      const num = extractNumber(clean);
+      if(num !== null){
+        document.getElementById('lastHeard').textContent = clean + ' -> heard: ' + num + '°F';
+        if(e.results[e.results.length-1].isFinal){
+          handleMicTestResult(num);
+          clearingBuffer = true;
+          try{ r.stop(); }catch(err){}
+          return;
+        }
+        pauseTimer = setTimeout(function(){
+          handleMicTestResult(num);
+          clearingBuffer = true;
+          try{ r.stop(); }catch(err){}
+        }, PAUSE_MS);
+      }
+      return; // Don't process as temp/obs during mic test
+    }
+
+    // Check for voice start command
+    if(roastReady && !roastActive && micTestPassed){
       if(/\bstart\b/i.test(clean)){
         beginRoast();
         document.getElementById('lastHeard').textContent = '✅ Roast started!';
@@ -119,7 +145,7 @@ function initSpeech(){
 }
 
 function commitTemp(num, rawText){
-  if(!roastActive) return; // Ignore temps if roast hasn't officially started
+  if(!roastActive) return;
   const now = Date.now();
   const lastReading = readings.length > 0 ? readings[readings.length-1] : null;
   if(lastReading && lastReading.value === num && (now - (startTime + lastReading.timeSec*1000)) < 2000){
@@ -132,7 +158,7 @@ function commitTemp(num, rawText){
 }
 
 function commitObs(text){
-  if(!roastActive) return; // Ignore obs if roast hasn't officially started
+  if(!roastActive) return;
   if(!text || text.length < 2) return;
   const now = Date.now();
   const lastObs = observations.length > 0 ? observations[observations.length-1] : null;

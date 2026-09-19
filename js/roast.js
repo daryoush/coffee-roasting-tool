@@ -5,6 +5,7 @@ function prepareRoast(){
   
   roastReady = true;
   roastActive = false;
+  micTestPassed = false;
   readings = []; minuteAvgs = []; observations = [];
   profileSteps.forEach(s => s.spoken = false);
   lastProcessedMinute = -1;
@@ -13,12 +14,12 @@ function prepareRoast(){
   drawChart();
   
   document.getElementById('timerDisplay').textContent = '00:00';
-  document.getElementById('gasInstruction').textContent = '🎤 Say "Start" to begin roasting';
+  document.getElementById('gasInstruction').textContent = '🎤 Click "Start Listening" to begin mic test';
   document.getElementById('gasInstruction').className = 'instruction gas-ok';
 }
 
 function beginRoast(){
-  if(!roastReady) return;
+  if(!roastReady || !micTestPassed) return;
   roastActive = true;
   startTime = Date.now();
   timerInterval = setInterval(tick, 1000);
@@ -126,19 +127,35 @@ function processMinuteEnd(minute){
 }
 
 function updateDisplay(elapsedMin){
-  let currentTarget = profileSteps.length > 0 ? profileSteps[0].target : 200;
-  for(let i = profileSteps.length - 1; i >= 0; i--){
-    if(elapsedMin >= profileSteps[i].time){
-      currentTarget = profileSteps[i].target;
-      break;
+  // NEW: Interpolate target temperature continuously
+  let currentTarget;
+  
+  if(elapsedMin <= profileSteps[0].time){
+    currentTarget = profileSteps[0].target;
+  } else if(elapsedMin >= profileSteps[profileSteps.length - 1].time){
+    currentTarget = profileSteps[profileSteps.length - 1].target;
+  } else {
+    // Find surrounding steps and interpolate
+    for(let i = 0; i < profileSteps.length - 1; i++){
+      if(elapsedMin >= profileSteps[i].time && elapsedMin < profileSteps[i + 1].time){
+        const progress = (elapsedMin - profileSteps[i].time) / (profileSteps[i + 1].time - profileSteps[i].time);
+        currentTarget = profileSteps[i].target + (profileSteps[i + 1].target - profileSteps[i].target) * progress;
+        break;
+      }
     }
   }
   
-  document.getElementById('targetDisplay').textContent = 'Target: '+currentTarget+'°F';
+  document.getElementById('targetDisplay').textContent = 'Target: '+Math.round(currentTarget)+'°F';
   const beanEst = estimateBeanTemp(elapsedMin);
   document.getElementById('estimateDisplay').textContent = 'Bean Est: '+beanEst+'°F';
   const diff = currentTarget - beanEst;
   const inst = document.getElementById('gasInstruction');
+  
+  // Don't override mic test or pre-start messages
+  if(micTestActive || (roastReady && !roastActive && !micTestPassed)){
+    return;
+  }
+  
   if(Math.abs(diff)<=4){
     inst.textContent = '✓ HOLD GAS — On target ('+beanEst+'°F)';
     inst.className = 'instruction gas-ok';
@@ -154,12 +171,13 @@ function updateDisplay(elapsedMin){
 function endRoast(){
   roastActive = false;
   roastReady = false;
+  micTestActive = false;
+  micTestPassed = false;
   clearInterval(timerInterval);
   clearTimeout(voiceRestartTimer);
   clearTimeout(pauseTimer);
   if(recognition){try{recognition.stop();}catch(e){} isListening=false;}
   
-  // Reset UI back to setup panel
   document.getElementById('roastPanel').style.display='none';
   document.getElementById('setupPanel').style.display='block';
   document.getElementById('micBtn').disabled = false;
@@ -206,5 +224,39 @@ function submitObs(){
     recordObservation(text);
     input.value = '';
     input.focus();
+  }
+}
+
+// Mic test functions
+function startMicTest(){
+  micTestActive = true;
+  micTestIndex = 0;
+  micTestNumbers = [];
+  for(let i = 0; i < 3; i++){
+    micTestNumbers.push(Math.floor(Math.random() * 400) + 100); // 100-499
+  }
+  document.getElementById('gasInstruction').textContent = '🎤 Mic Test: Say ' + micTestNumbers[0];
+  document.getElementById('gasInstruction').className = 'instruction gas-ok';
+  speak('Microphone test. Please say ' + micTestNumbers[0]);
+}
+
+function handleMicTestResult(recognizedNum){
+  const targetNum = micTestNumbers[micTestIndex];
+  const tolerance = 5;
+  
+  if(Math.abs(recognizedNum - targetNum) <= tolerance){
+    micTestIndex++;
+    if(micTestIndex >= 3){
+      micTestActive = false;
+      micTestPassed = true;
+      document.getElementById('gasInstruction').textContent = '✅ Mic test passed! Preheat pan and say "Start" when beans are dumped';
+      speak('Microphone test passed. Preheat the pan and say start when the beans are dumped to the preheated pan');
+    } else {
+      document.getElementById('gasInstruction').textContent = '🎤 Mic Test: Say ' + micTestNumbers[micTestIndex];
+      speak('Good. Now say ' + micTestNumbers[micTestIndex]);
+    }
+  } else {
+    document.getElementById('gasInstruction').textContent = '❌ Try again. Say ' + targetNum;
+    speak('Didn\'t catch that. Please say ' + targetNum + ' again');
   }
 }
