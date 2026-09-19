@@ -23,10 +23,14 @@ function initSpeech(){
   r.onstart = function(){
     isListening = true;
     updateMicUI();
+    console.log('[SPEECH] Started. roastReady=', roastReady, 'roastActive=', roastActive, 'micTestPassed=', micTestPassed, 'micTestActive=', micTestActive);
     
-    // NEW: Start mic test when listening begins in pre-roast state
+    // Start mic test when entering roast panel for the first time
     if(roastReady && !roastActive && !micTestPassed && !micTestActive){
-      setTimeout(startMicTest, 500); // Small delay to let UI settle
+      setTimeout(function(){
+        console.log('[SPEECH] Triggering mic test');
+        startMicTest();
+      }, 300);
     } else {
       showVoiceOk('Microphone active');
     }
@@ -39,31 +43,39 @@ function initSpeech(){
     }
     const clean = transcript.trim();
     console.log('[SPEECH] Raw transcript:', clean, '| isFinal:', e.results[e.results.length-1].isFinal);
-    if(micTestActive) console.log("[MIC TEST] Recognized:", clean, "-> extracted:", extractNumber(clean));    document.getElementById('lastHeard').textContent = clean;
+    document.getElementById('lastHeard').textContent = clean;
 
-    // NEW: Handle mic test
-    // Handle mic test
+    // Handle mic test mode
     if(micTestActive){
       const num = extractNumber(clean);
-      console.log("[MIC TEST] Recognized:", clean, "-> extracted:", num);
+      console.log('[MIC TEST] Recognized:', clean, '-> extracted:', num);
       
-      if(e.results[e.results.length-1].isFinal || clean.length > 0){
+      // Only process final results or after a pause
+      if(e.results[e.results.length-1].isFinal){
         handleMicTestResult(num, clean);
         clearingBuffer = true;
         try{ r.stop(); }catch(err){}
         return;
       }
       
-      // For interim results, show what was heard
+      // Show interim results
       if(num !== null){
-        document.getElementById("lastHeard").textContent = clean + " -> heard: " + num + "°F";
+        document.getElementById('lastHeard').textContent = clean + ' -> heard: ' + num + '°F';
       }
+      
+      clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(function(){
+        handleMicTestResult(num, clean);
+        clearingBuffer = true;
+        try{ r.stop(); }catch(err){}
+      }, PAUSE_MS);
       return;
-    }    }
+    }
 
-    // Check for voice start command
+    // Check for voice start command (only after mic test passes)
     if(roastReady && !roastActive && micTestPassed){
       if(/\bstart\b/i.test(clean)){
+        console.log('[SPEECH] Start command detected');
         beginRoast();
         document.getElementById('lastHeard').textContent = '✅ Roast started!';
         clearingBuffer = true;
@@ -72,6 +84,7 @@ function initSpeech(){
       }
     }
 
+    // Normal roast mode: process temps and observations
     clearTimeout(pauseTimer);
 
     const num = extractNumber(clean);
@@ -118,7 +131,7 @@ function initSpeech(){
   };
 
   r.onend = function(){
-    console.log('[SPEECH] Recognition ended. clearingBuffer=', clearingBuffer);
+    console.log('[SPEECH] Recognition ended. clearingBuffer=', clearingBuffer, 'isListening=', isListening);
     if(clearingBuffer){
       clearingBuffer = false;
       setTimeout(function(){
@@ -129,15 +142,15 @@ function initSpeech(){
           console.log('[SPEECH] Restart after clear failed:', e);
         }
       }, 50);
+    } else if(isListening){
+      // Auto-restart if we're supposed to be listening
+      clearTimeout(voiceRestartTimer);
+      voiceRestartTimer = setTimeout(function(){
+        try{ r.start(); } catch(e){ console.log('[SPEECH] Auto-restart failed:', e); }
+      }, 400);
     } else {
       isListening = false;
       updateMicUI();
-      if(roastActive && document.getElementById('micBtn').textContent.indexOf('Stop') !== -1){
-        clearTimeout(voiceRestartTimer);
-        voiceRestartTimer = setTimeout(function(){
-          try{ r.start(); } catch(e){ console.log('[SPEECH] Auto-restart failed:', e); }
-        }, 400);
-      }
     }
   };
 
@@ -214,7 +227,11 @@ function toggleMic(){
     try{ recognition.stop(); }catch(e){}
     updateMicUI();
   } else {
-    try{ recognition.start(); } catch(e){
+    try{ 
+      recognition.start();
+      console.log('[SPEECH] Start requested');
+    } catch(e){
+      console.log('[SPEECH] Start failed:', e);
       showVoiceWarning('Could not start microphone. Reload page and allow mic access.');
     }
   }
