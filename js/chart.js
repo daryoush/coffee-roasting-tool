@@ -14,6 +14,38 @@ function resizeCanvas(){
 }
 window.addEventListener('resize', resizeCanvas);
 
+// Map note keywords to canvas colors (mirrors CSS classes)
+function getNoteColor(note){
+  if(!note) return '#4a7fa8';
+  const lower = note.toLowerCase();
+  if(lower.includes('charge') || lower.includes('preheat')) return '#d9955a';
+  if(lower.includes('high') || lower.includes('full') || lower.includes('max')) return '#ff6b5a';
+  if(lower.includes('medium-high') || lower.includes('med-high')) return '#ff8c42';
+  if(lower.includes('medium-low') || lower.includes('med-low')) return '#ffd43b';
+  if(lower.includes('medium') || lower.includes('med')) return '#ffa94d';
+  if(lower.includes('low') || lower.includes('reduce') || lower.includes('decrease')) return '#8ecfff';
+  if(lower.includes('hold') || lower.includes('maintain')) return '#8fdf8f';
+  return '#4a7fa8';
+}
+
+// Full-screen chart toggle
+function toggleChartFullscreen(){
+  const app = document.getElementById('app');
+  app.classList.toggle('fullscreen-chart');
+  setTimeout(resizeCanvas, 50);
+}
+
+// Listen for Escape key to exit fullscreen
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    const app = document.getElementById('app');
+    if(app.classList.contains('fullscreen-chart')){
+      app.classList.remove('fullscreen-chart');
+      setTimeout(resizeCanvas, 50);
+    }
+  }
+});
+
 function drawChart(){
   const W = wrap.offsetWidth, H = wrap.offsetHeight;
   if(!W || !H) return;
@@ -42,6 +74,7 @@ function drawChart(){
 
   ctx.clearRect(0, 0, W, H);
 
+  // Grid
   ctx.strokeStyle = '#3a3028';
   ctx.lineWidth = 1;
   for(let t=minT; t<=maxT; t+=20){
@@ -52,11 +85,13 @@ function drawChart(){
     ctx.beginPath(); ctx.moveTo(tx(t), pad.t); ctx.lineTo(tx(t), H - pad.b); ctx.stroke();
   }
 
+  // Y-axis labels
   ctx.fillStyle = '#a09080';
   ctx.font = '12px system-ui';
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
   for(let t=minT; t<=maxT; t+=40){ ctx.fillText(t + '°', pad.l - 8, ty(t)); }
   
+  // X-axis labels
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   for(let t=0; t<=maxTime; t+=timeStep){
     const m = Math.floor(t);
@@ -65,26 +100,33 @@ function drawChart(){
     ctx.fillText(label, tx(t), H - pad.b + 6);
   }
 
-  ctx.strokeStyle = '#4a7fa8';
+  // COLOR-CODED target profile line segments
   ctx.lineWidth = 3;
   ctx.lineJoin = 'round';
-  ctx.beginPath();
-  let started = false;
-  for(let i=0; i<profileSteps.length; i++){
+  for(let i=0; i<profileSteps.length - 1; i++){
     const step = profileSteps[i];
-    const x = tx(step.time);
-    const y = ty(step.target);
-    if(!started){ ctx.moveTo(x, y); started = true; }
-    else { ctx.lineTo(x, y); }
-  }
-  ctx.stroke();
-
-  ctx.fillStyle = '#4a7fa8';
-  for(let i=0; i<profileSteps.length; i++){
-    const step = profileSteps[i];
-    ctx.beginPath(); ctx.arc(tx(step.time), ty(step.target), 5, 0, Math.PI*2); ctx.fill();
+    const nextStep = profileSteps[i+1];
+    ctx.strokeStyle = getNoteColor(step.note);
+    ctx.beginPath();
+    ctx.moveTo(tx(step.time), ty(step.target));
+    ctx.lineTo(tx(nextStep.time), ty(nextStep.target));
+    ctx.stroke();
   }
 
+  // COLOR-CODED target profile dots
+  for(let i=0; i<profileSteps.length; i++){
+    const step = profileSteps[i];
+    ctx.fillStyle = getNoteColor(step.note);
+    ctx.beginPath();
+    ctx.arc(tx(step.time), ty(step.target), 6, 0, Math.PI*2);
+    ctx.fill();
+    // White border for visibility
+    ctx.strokeStyle = '#1a1512';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Bean estimate line
   if(minuteAvgs.length > 0){
     ctx.strokeStyle = '#5a8f5a';
     ctx.lineWidth = 2.5;
@@ -99,6 +141,7 @@ function drawChart(){
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // Bean estimate diamonds
     ctx.fillStyle = '#5a8f5a';
     ctx.strokeStyle = '#1a1512';
     ctx.lineWidth = 2;
@@ -117,6 +160,7 @@ function drawChart(){
     });
   }
 
+  // Reading dots
   ctx.fillStyle = '#c17f45';
   readings.forEach(function(r){
     const x = tx(r.timeSec / 60);
@@ -124,6 +168,7 @@ function drawChart(){
     ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2); ctx.fill();
   });
 
+  // Observation flags
   ctx.fillStyle = '#8a6fa8';
   ctx.strokeStyle = '#1a1512';
   ctx.lineWidth = 1.5;
@@ -144,6 +189,7 @@ function drawChart(){
     ctx.fillStyle = '#8a6fa8';
   });
 
+  // Current time cursor
   if(roastActive && startTime){
     const elapsedMin = (Date.now() - startTime) / 60000;
     const cx = tx(elapsedMin);

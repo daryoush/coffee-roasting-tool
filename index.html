@@ -85,7 +85,7 @@
     </div>
 
     <div style="margin-top:14px;">
-      <div id="chartWrap"><canvas id="chartCanvas"></canvas></div>
+      <div id="chartWrap"><canvas id="chartCanvas"></canvas><button class="btn btn-red fullscreen-exit-btn" onclick="toggleChartFullscreen()">✕ Exit Full Screen</button></div>
       <div style="text-align:center;margin-top:8px;">
         <span class="legend-item"><span class="legend-line" style="background:#4a7fa8;"></span>Target</span>
         <span class="legend-item"><span class="legend-dot" style="background:#c17f45;"></span>Reading</span>
@@ -111,6 +111,7 @@
 
     <div style="margin-top:14px;text-align:center;display:flex;gap:10px;justify-content:center;">
       <button class="btn btn-red" onclick="endRoast()">⏹ End Roast</button>
+      <button class="btn btn-gray" onclick="toggleChartFullscreen()">⛶ Full Screen</button>
       <button class="btn" onclick="exportData()">⬇ Export Roast CSV</button>
     </div>
   </div>
