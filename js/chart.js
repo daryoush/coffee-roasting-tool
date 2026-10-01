@@ -203,6 +203,8 @@ function drawChart(){
   }
 }
 
+
+
 // Full-screen toggle using CSS classes (no user gesture required)
 function toggleChartFullscreen(){
   console.log('[CHART] toggleChartFullscreen called');
