@@ -21,3 +21,10 @@ let micTestActive = false;
 let micTestNumbers = [];
 let micTestIndex = 0;
 let micTestPassed = false;
+
+// Version information - bump this with each change
+const APP_VERSION = {
+  number: '1.2.0',
+  date: '2026-10-02',
+  time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+};

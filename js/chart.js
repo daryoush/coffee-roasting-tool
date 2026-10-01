@@ -28,31 +28,49 @@ function getNoteColor(note){
   return '#4a7fa8';
 }
 
+// Full-screen toggle using CSS classes (no user gesture required)
 function toggleChartFullscreen(){
   console.log('[CHART] toggleChartFullscreen called');
-  const roastPanel = document.getElementById('roastPanel');
+  const body = document.body;
+  const isFullscreen = body.classList.contains('fullscreen-mode');
   
-  if(!document.fullscreenElement){
-    roastPanel.requestFullscreen().then(function(){
-      console.log('[CHART] ✅ Entered native fullscreen');
-      document.body.classList.add('fullscreen-mode');
-      setTimeout(resizeCanvas, 150);
-    }).catch(function(err){
-      console.log('[CHART] ❌ Fullscreen failed:', err.message);
-    });
+  if(!isFullscreen){
+    body.classList.add('fullscreen-mode');
+    console.log('[CHART] ✅ Entered CSS fullscreen');
+    const roastPanel = document.getElementById('roastPanel');
+    if(roastPanel && typeof roastPanel.requestFullscreen === 'function'){
+      roastPanel.requestFullscreen().catch(function(err){
+        console.log('[CHART] Native fullscreen not available, CSS fallback active:', err.message);
+      });
+    }
   } else {
-    document.exitFullscreen();
+    body.classList.remove('fullscreen-mode');
+    console.log('[CHART] ✅ Exited CSS fullscreen');
+    if(document.fullscreenElement){
+      document.exitFullscreen().catch(function(){});
+    }
   }
+  
+  setTimeout(resizeCanvas, 50);
+  setTimeout(resizeCanvas, 200);
 }
 
-document.addEventListener('fullscreenchange', function(){
-  console.log('[CHART] fullscreenchange event');
-  if(!document.fullscreenElement){
+// Listen for Escape key to exit CSS fullscreen
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')){
     document.body.classList.remove('fullscreen-mode');
-    setTimeout(resizeCanvas, 150);
-  } else {
-    document.body.classList.add('fullscreen-mode');
-    setTimeout(resizeCanvas, 150);
+    if(document.fullscreenElement){
+      document.exitFullscreen().catch(function(){});
+    }
+    setTimeout(resizeCanvas, 50);
+  }
+});
+
+// Listen for native fullscreen exit
+document.addEventListener('fullscreenchange', function(){
+  if(!document.fullscreenElement && document.body.classList.contains('fullscreen-mode')){
+    document.body.classList.remove('fullscreen-mode');
+    setTimeout(resizeCanvas, 50);
   }
 });
 
@@ -202,57 +220,3 @@ function drawChart(){
     ctx.setLineDash([]);
   }
 }
-
-
-
-// Full-screen toggle using CSS classes (no user gesture required)
-function toggleChartFullscreen(){
-  console.log('[CHART] toggleChartFullscreen called');
-  const body = document.body;
-  const isFullscreen = body.classList.contains('fullscreen-mode');
-  
-  if(!isFullscreen){
-    // Enter fullscreen
-    body.classList.add('fullscreen-mode');
-    console.log('[CHART] ✅ Entered CSS fullscreen');
-    
-    // Try native fullscreen as enhancement (may fail without user gesture)
-    const roastPanel = document.getElementById('roastPanel');
-    if(roastPanel && typeof roastPanel.requestFullscreen === 'function'){
-      roastPanel.requestFullscreen().catch(function(err){
-        console.log('[CHART] Native fullscreen not available, CSS fallback active:', err.message);
-      });
-    }
-  } else {
-    // Exit fullscreen
-    body.classList.remove('fullscreen-mode');
-    console.log('[CHART] ✅ Exited CSS fullscreen');
-    
-    if(document.fullscreenElement){
-      document.exitFullscreen().catch(function(){});
-    }
-  }
-  
-  // Resize chart after CSS transition
-  setTimeout(resizeCanvas, 50);
-  setTimeout(resizeCanvas, 200);
-}
-
-// Listen for Escape key to exit CSS fullscreen
-document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')){
-    document.body.classList.remove('fullscreen-mode');
-    if(document.fullscreenElement){
-      document.exitFullscreen().catch(function(){});
-    }
-    setTimeout(resizeCanvas, 50);
-  }
-});
-
-// Listen for native fullscreen exit (e.g., browser Escape)
-document.addEventListener('fullscreenchange', function(){
-  if(!document.fullscreenElement && document.body.classList.contains('fullscreen-mode')){
-    document.body.classList.remove('fullscreen-mode');
-    setTimeout(resizeCanvas, 50);
-  }
-});
