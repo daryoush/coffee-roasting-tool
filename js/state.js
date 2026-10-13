@@ -24,7 +24,7 @@ let micTestPassed = false;
 let micTestEnabled = true;
 // Version information - bump this with each change
 const APP_VERSION = {
-  number: '1.4.0',
+  number: '1.5.0',
   date: '2026-10-02',
   time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 };
