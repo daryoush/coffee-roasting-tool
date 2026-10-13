@@ -17,7 +17,7 @@ function prepareRoast(){
   lastProcessedMinute = -1;
   
   resizeCanvas();
-  drawChart();
+  drawChart(); if(typeof drawOverview === "function") drawOverview();
   
   document.getElementById('timerDisplay').textContent = '00:00';
   document.getElementById('targetDisplay').textContent = 'Target: —';
@@ -64,7 +64,7 @@ function tick(){
   }
   
   updateDisplay(elapsedMin);
-  drawChart();
+  drawChart(); if(typeof drawOverview === "function") drawOverview();
 }
 
 function handleStepStart(step){
@@ -91,7 +91,7 @@ function recordReading(temp){
   entry.innerHTML = '<span style="color:#a09080">'+m+':'+String(s).padStart(2,'0')+'</span> <b style="color:#c17f45">'+temp+'°F</b>';
   log.prepend(entry);
   updateDisplay(elapsed/60);
-  drawChart();
+  drawChart(); if(typeof drawOverview === "function") drawOverview();
 }
 
 function recordObservation(text){
@@ -105,7 +105,7 @@ function recordObservation(text){
   const m = Math.floor(elapsed/60), s = Math.floor(elapsed%60);
   entry.innerHTML = '<span style="color:#a09080">'+m+':'+String(s).padStart(2,'0')+'</span> <b style="color:#8a6fa8">'+text+'</b>';
   log.prepend(entry);
-  drawChart();
+  drawChart(); if(typeof drawOverview === "function") drawOverview();
 }
 
 function estimateBeanTemp(elapsedMin){
