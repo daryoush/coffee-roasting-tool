@@ -1,11 +1,16 @@
 function prepareRoast(){
   if(profileSteps.length < 2){alert('Enter at least 2 target temperatures.'); return;}
+  
+  // Read mic test preference from checkbox
+  const micTestCheckbox = document.getElementById('micTestCheckbox');
+  micTestEnabled = micTestCheckbox ? micTestCheckbox.checked : true;
+  
   document.getElementById('setupPanel').style.display='none';
   document.getElementById('roastPanel').style.display='block';
   
   roastReady = true;
   roastActive = false;
-  micTestPassed = false;
+  micTestPassed = !micTestEnabled; // If disabled, automatically considered passed
   micTestActive = false;
   readings = []; minuteAvgs = []; observations = [];
   profileSteps.forEach(s => s.spoken = false);
@@ -18,7 +23,12 @@ function prepareRoast(){
   document.getElementById('targetDisplay').textContent = 'Target: —';
   document.getElementById('readingDisplay').textContent = 'Reading: —';
   document.getElementById('estimateDisplay').textContent = 'Bean Est: —';
-  document.getElementById('gasInstruction').textContent = '🎤 Click "Start Listening" to begin mic test';
+  
+  if(micTestEnabled) {
+    document.getElementById('gasInstruction').textContent = '🎤 Click "Start Listening" to begin mic test';
+  } else {
+    document.getElementById('gasInstruction').textContent = '🎤 Click "Start Listening" and say "Start" to begin';
+  }
   document.getElementById('gasInstruction').className = 'instruction gas-ok';
   document.getElementById('minuteNote').style.display = 'none';
 }

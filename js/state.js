@@ -21,7 +21,7 @@ let micTestActive = false;
 let micTestNumbers = [];
 let micTestIndex = 0;
 let micTestPassed = false;
-
+let micTestEnabled = true;
 // Version information - bump this with each change
 const APP_VERSION = {
   number: '1.3.0',

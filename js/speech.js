@@ -23,10 +23,10 @@ function initSpeech(){
   r.onstart = function(){
     isListening = true;
     updateMicUI();
-    console.log('[SPEECH] Started. roastReady=', roastReady, 'roastActive=', roastActive, 'micTestPassed=', micTestPassed, 'micTestActive=', micTestActive);
+    console.log('[SPEECH] Started. micTestEnabled=', micTestEnabled, 'micTestPassed=', micTestPassed);
     
-    // Start mic test when entering roast panel for the first time
-    if(roastReady && !roastActive && !micTestPassed && !micTestActive){
+    // Start mic test ONLY if enabled and not already passed
+    if(roastReady && !roastActive && !micTestPassed && !micTestActive && micTestEnabled){
       setTimeout(function(){
         console.log('[SPEECH] Triggering mic test');
         startMicTest();
