@@ -9,6 +9,10 @@
 <meta name="theme-color" content="#c17f45">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon.svg"><link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#c17f45">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 <div id="app">
@@ -145,5 +149,17 @@
         });
     });
   }
-</script></body>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker.register("/service-worker.js")
+        .then(function(registration) {
+          console.log("[SW] Registered:", registration.scope);
+        })
+        .catch(function(error) {
+          console.log("[SW] Registration failed:", error);
+        });
+    });
+  }
+</script></script></body>
 </html>

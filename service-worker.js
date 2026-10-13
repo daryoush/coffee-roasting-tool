@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roast-commander-v1.3.0';
+const CACHE_NAME = 'roast-commander-v1.4.0';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -13,7 +13,6 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
-// Install event - cache all assets
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -24,22 +23,18 @@ self.addEventListener('install', function(event) {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', function(event) {
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {
-        // Cache hit - return response
         if (response) {
           return response;
         }
         return fetch(event.request);
-      }
-    )
-  );
+      })
+    );
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
