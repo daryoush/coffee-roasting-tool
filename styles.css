@@ -26,7 +26,7 @@ input[type="file"]{display:none;}
 @keyframes pulse{0%{opacity:1}50%{opacity:.3}100%{opacity:1}}
 .row{display:flex;gap:14px;flex-wrap:wrap;}
 .col{flex:1;min-width:260px;}
-#chartWrap{position:relative;width:100%;height:380px;background:#1a1512;border-radius:10px;border:1px solid #3a3028;overflow:hidden;}
+#chartWrap{position:relative;width:100%;height:550px;background:#1a1512;border-radius:10px;border:1px solid #3a3028;overflow:hidden;}
 canvas{display:block;width:100%;height:100%;}
 .log{max-height:140px;overflow-y:auto;font-size:13px;background:#1a1512;padding:10px;border-radius:8px;border:1px solid #3a3028;line-height:1.5;}
 .log-entry{margin:3px 0;padding:3px 6px;border-radius:4px;background:#252019;}
