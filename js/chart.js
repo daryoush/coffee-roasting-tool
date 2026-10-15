@@ -11,7 +11,6 @@ function resizeCanvas(){
   canvas.style.width = rect.width + 'px';
   canvas.style.height = rect.height + 'px';
   ctx.setTransform(chartDPR, 0, 0, chartDPR, 0, 0);
-  
   drawChart();
   drawOverview();
 }
@@ -34,10 +33,8 @@ function toggleChartFullscreen(){
   console.log('[CHART] toggleChartFullscreen called');
   const body = document.body;
   const isFullscreen = body.classList.contains('fullscreen-mode');
-  
   if(!isFullscreen){
     body.classList.add('fullscreen-mode');
-    console.log('[CHART] ✅ Entered CSS fullscreen');
     const roastPanel = document.getElementById('roastPanel');
     if(roastPanel && typeof roastPanel.requestFullscreen === 'function'){
       roastPanel.requestFullscreen().catch(function(err){
@@ -46,12 +43,10 @@ function toggleChartFullscreen(){
     }
   } else {
     body.classList.remove('fullscreen-mode');
-    console.log('[CHART] ✅ Exited CSS fullscreen');
     if(document.fullscreenElement){
       document.exitFullscreen().catch(function(){});
     }
   }
-  
   setTimeout(resizeCanvas, 50);
   setTimeout(resizeCanvas, 200);
 }
@@ -88,12 +83,25 @@ function drawChart(){
     currentTime = readings[readings.length - 1].timeSec / 60;
   }
 
-  // 2-minute rolling window
+  // KEY CHANGE: Show full profile before roast starts, 2-min window during roast
+  const useZoomedView = roastActive;
   const windowSize = 2.0;
-  const minTime = Math.max(0, currentTime - 1.0);
-  const maxTime = minTime + windowSize;
+  let minTime, maxTime;
+  
+  if(useZoomedView){
+    // 2-minute rolling window centered on current time
+    minTime = Math.max(0, currentTime - 1.0);
+    maxTime = minTime + windowSize;
+  } else {
+    // Full profile view: show entire planned roast
+    minTime = 0;
+    maxTime = profileSteps.length > 0 
+      ? profileSteps[profileSteps.length - 1].time 
+      : 10;
+    if(maxTime < 1) maxTime = 1;
+  }
 
-  // Collect temps within the visible window for dynamic Y-axis scaling
+  // Collect temps for Y-axis scaling
   let visibleTemps = [];
   profileSteps.forEach(function(s){
     if(s.time >= minTime - 0.5 && s.time <= maxTime + 0.5) visibleTemps.push(s.target);
@@ -120,7 +128,7 @@ function drawChart(){
     maxT = allTemps.length ? Math.max.apply(null, allTemps) : 500;
   }
   
-  // Ensure a minimum range of 40 degrees to prevent extreme zooming on flat lines
+  // Ensure minimum range to prevent extreme zooming
   if(maxT - minT < 40){
     const mid = (minT + maxT) / 2;
     minT = mid - 20;
@@ -130,7 +138,7 @@ function drawChart(){
   minT = Math.floor((minT - 10)/20)*20;
   maxT = Math.ceil((maxT + 10)/20)*20;
 
-  const tx = function(t){ return ((t - minTime) / windowSize) * cw + pad.l; };
+  const tx = function(t){ return ((t - minTime) / (maxTime - minTime)) * cw + pad.l; };
   const ty = function(t){ return pad.t + ch - ((t - minT) / (maxT - minT)) * ch; };
 
   ctx.clearRect(0, 0, W, H);
@@ -142,8 +150,18 @@ function drawChart(){
     ctx.beginPath(); ctx.moveTo(pad.l, ty(t)); ctx.lineTo(W - pad.r, ty(t)); ctx.stroke();
   }
   
-  // X-axis grid lines: step by 0.5 minutes (30 seconds)
-  const timeStep = 0.5;
+  // X-axis grid lines
+  let timeStep;
+  if(useZoomedView){
+    timeStep = 0.5; // 30 seconds in zoomed view
+  } else {
+    // Adaptive step for full view based on total duration
+    const duration = maxTime - minTime;
+    if(duration <= 5) timeStep = 0.5;
+    else if(duration <= 10) timeStep = 1;
+    else if(duration <= 20) timeStep = 2;
+    else timeStep = Math.ceil(duration / 10);
+  }
   const startStep = Math.ceil(minTime / timeStep) * timeStep;
   for(let t = startStep; t <= maxTime + 0.01; t += timeStep){
     ctx.beginPath(); ctx.moveTo(tx(t), pad.t); ctx.lineTo(tx(t), H - pad.b); ctx.stroke();
@@ -252,8 +270,8 @@ function drawChart(){
     ctx.fillStyle = '#8a6fa8';
   });
 
-  // Current time cursor
-  if(roastActive && startTime){
+  // Current time cursor (only in zoomed view during roast)
+  if(useZoomedView && roastActive && startTime){
     const elapsedMin = (Date.now() - startTime) / 60000;
     const cx = tx(elapsedMin);
     ctx.strokeStyle = '#c17f45';
@@ -274,18 +292,18 @@ function drawOverview(){
   const oWrap = document.getElementById('overviewWrap');
   const W = oWrap.offsetWidth, H = oWrap.offsetHeight;
   if(!W || !H) return;
-  
+
   const oDPR = Math.min(window.devicePixelRatio || 1, 2);
   oCanvas.width = W * oDPR;
   oCanvas.height = H * oDPR;
   oCanvas.style.width = W + 'px';
   oCanvas.style.height = H + 'px';
   oCtx.setTransform(oDPR, 0, 0, oDPR, 0, 0);
-  
+
   const pad = {t:10, r:44, b:20, l:56};
   const cw = W - pad.l - pad.r;
   const ch = H - pad.t - pad.b;
-  
+
   const allTemps = [
     ...profileSteps.map(function(s){return s.target;}),
     ...readings.map(function(r){return r.value;}),
@@ -295,25 +313,25 @@ function drawOverview(){
   let maxT = allTemps.length ? Math.max.apply(null, allTemps) : 500;
   minT = Math.floor((minT - 20)/20)*20;
   maxT = Math.ceil((maxT + 20)/20)*20;
-  
+
   const maxTime = Math.max(
     profileSteps.length > 0 ? profileSteps[profileSteps.length-1].time : 5,
     roastActive && startTime ? (Date.now() - startTime) / 60000 + 1 : 5,
     5
   );
-  
+
   const tx = function(t){ return (t / maxTime) * cw + pad.l; };
   const ty = function(t){ return pad.t + ch - ((t - minT) / (maxT - minT)) * ch; };
-  
+
   oCtx.clearRect(0, 0, W, H);
-  
+
   // Faint grid
   oCtx.strokeStyle = '#2a2018';
   oCtx.lineWidth = 1;
   for(let t=minT; t<=maxT; t+=40){
     oCtx.beginPath(); oCtx.moveTo(pad.l, ty(t)); oCtx.lineTo(W - pad.r, ty(t)); oCtx.stroke();
   }
-  
+
   // Full profile line
   oCtx.strokeStyle = '#4a7fa8';
   oCtx.lineWidth = 2;
@@ -328,7 +346,7 @@ function drawOverview(){
     else { oCtx.lineTo(x, y); }
   }
   oCtx.stroke();
-  
+
   // Faint readings
   oCtx.fillStyle = 'rgba(193, 127, 69, 0.5)';
   readings.forEach(function(r){
@@ -336,28 +354,23 @@ function drawOverview(){
     const y = ty(r.value);
     oCtx.beginPath(); oCtx.arc(x, y, 2, 0, Math.PI*2); oCtx.fill();
   });
-  
-  // Highlight rectangle for visible window
-  let currentTime = 0;
+
+  // Highlight rectangle for visible window (only meaningful during roast)
   if(roastActive && startTime){
-    currentTime = (Date.now() - startTime) / 60000;
-  } else if(readings.length > 0){
-    currentTime = readings[readings.length - 1].timeSec / 60;
-  }
-  const windowSize = 2.0;
-  const minTime = Math.max(0, currentTime - 1.0);
-  const maxTimeWin = minTime + windowSize;
-  
-  const x1 = tx(minTime);
-  const x2 = tx(maxTimeWin);
-  oCtx.fillStyle = 'rgba(193, 127, 69, 0.2)';
-  oCtx.fillRect(x1, pad.t, x2 - x1, ch);
-  oCtx.strokeStyle = '#c17f45';
-  oCtx.lineWidth = 1;
-  oCtx.strokeRect(x1, pad.t, x2 - x1, ch);
-  
-  // Current time cursor
-  if(roastActive && startTime){
+    let currentTime = (Date.now() - startTime) / 60000;
+    const windowSize = 2.0;
+    const minTime = Math.max(0, currentTime - 1.0);
+    const maxTimeWin = minTime + windowSize;
+
+    const x1 = tx(minTime);
+    const x2 = tx(maxTimeWin);
+    oCtx.fillStyle = 'rgba(193, 127, 69, 0.2)';
+    oCtx.fillRect(x1, pad.t, x2 - x1, ch);
+    oCtx.strokeStyle = '#c17f45';
+    oCtx.lineWidth = 1;
+    oCtx.strokeRect(x1, pad.t, x2 - x1, ch);
+
+    // Current time cursor
     const elapsedMin = (Date.now() - startTime) / 60000;
     const cx = tx(elapsedMin);
     oCtx.strokeStyle = '#c17f45';
